@@ -1,13 +1,18 @@
 package sourcecollector
 
 type RemoteRepository struct {
-	URL string `json:"url"`
+	Owner      string `json:"owner"`
+	Repository string `json:"repository"`
+	Token      string `json:"token"`
+	Url        string `json:"url"`
 }
 
 type Metadata struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Data        Data   `json:"data"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Topics      []string `json:"topics"`
+	Stars       int      `json:"stars"`
+	Size        int      `json:"size"`
 }
 
 type Data struct {

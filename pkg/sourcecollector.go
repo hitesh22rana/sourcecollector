@@ -1,21 +1,23 @@
 package sourcecollector
 
-import (
-	"net/url"
-)
-
 type Repository interface {
 	GetMetadata() (Metadata, error)
 	SaveTextFile(string) error
 }
 
-func NewRepository(rawUrl string) (Repository, error) {
-	_, err := url.Parse(rawUrl)
+func NewRepository(url string) (Repository, error) {
+	if err := validateRepositoryURL(url); err != nil {
+		return nil, err
+	}
+
+	owner, repository, err := extractOwnerAndRepo(url)
 	if err != nil {
 		return nil, err
 	}
 
 	return &RemoteRepository{
-		URL: rawUrl,
+		Owner:      owner,
+		Repository: repository,
+		Url:        url,
 	}, nil
 }
