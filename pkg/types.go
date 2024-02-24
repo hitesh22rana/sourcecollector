@@ -4,13 +4,10 @@ type RemoteRepository struct {
 	URL string `json:"url"`
 }
 
-type LocalRepository struct {
-	Path string `json:"path"`
-}
-
 type Metadata struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Data        Data   `json:"data"`
 }
 
 type Data struct {
