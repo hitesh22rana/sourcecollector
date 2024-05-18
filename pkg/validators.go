@@ -13,12 +13,50 @@ var (
 		"bower_components", // Bower dependencies
 		"dist",             // Distribution directory
 		"build",            // Build directory
+		".next",            // Next.js build directory
+		".nuxt",            // Nuxt.js build directory
+		"databases",        // Database files
+		"data",             // Data files
+		"logs",             // Log files
+		"out",              // Next.js build directory
+		"public",           // Public directory
+		"coverage",         // Code coverage reports
+		"vendor",           // Composer dependencies
 		"tmp",              // Temporary files
 		"temp",             // Temporary files
 		".log",             // Log files
 		".tmp",             // Temporary files
 		".bak",             // Backup files
 		".swp",             // Swap files
+		"LCK..",            // Lock files
+		".DS_Store",        // macOS file system metadata
+		"Thumbs.db",        // Windows file system metadata
+		"LICENSE",          // License files
+		"AUTHORS",          // Authors files
+		"CONTRIBUTORS",     // Contributors files
+		"CHANGELOG",        // Changelog files
+		"CHANGES",          // Changes files
+		"HISTORY",          // History files
+		"NOTICE",           // Notice files
+		"README",           // Readme files
+		"TODO",             // Todo files
+
+		// JavaScript
+		"package-lock.json", // NPM lock file
+		"yarn.lock",         // Yarn lock file
+		"jest.config.js",    // Jest configuration
+		"jest.setup.js",     // Jest setup
+		"jest.json",         // Jest configuration
+		"jest",              // Jest configuration
+		"webpack.config.js", // Webpack configuration
+		"rollup.config.js",  // Rollup configuration
+		"gulpfile.js",       // Gulp configuration
+		"Gruntfile.js",      // Grunt configuration
+		"tsconfig.json",     // TypeScript configuration
+		"tslint.json",       // TypeScript lint configuration
+		"jsconfig.json",     // JavaScript configuration
+		"babel.config.js",   // Babel configuration
+		"prettier.config",   // Prettier configuration
 
 		// C/C++
 		".o",   // Object files
@@ -482,6 +520,18 @@ func IsSensitiveFile(path string) bool {
 
 // IsUnwantedFilesAndFolders checks if the file or directory is unwanted or not
 func IsUnwantedFilesAndFolders(path string) bool {
+	// Check if the file or directory or not
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	// Check if the file or directory is unwanted
+	if fileInfo.IsDir() && IsSensitiveFile(path) {
+		return true
+	}
+
+	// Check if the file or directory is unwanted
 	for _, unwantedFileAndFoler := range unwantedFilesAndFolders {
 		if strings.Contains(path, unwantedFileAndFoler) {
 			return true
@@ -507,11 +557,13 @@ func IsProgrammingFile(path string) bool {
 	high := len(validProgrammingFileExtensions) - 1
 	for low <= high {
 		mid := low + (high-low)/2
-		if validProgrammingFileExtensions[mid] == ext {
+		extension := validProgrammingFileExtensions[mid]
+
+		if extension == ext {
 			return true
 		}
 
-		if validProgrammingFileExtensions[mid] < ext {
+		if extension < ext {
 			low = mid + 1
 		} else {
 			high = mid - 1
