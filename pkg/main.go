@@ -3,6 +3,7 @@ package pkg
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 // NewSourceCollector creates a new SourceCollector
@@ -20,8 +21,9 @@ func NewSourceCollector(input string, output string) (*SourceCollector, error) {
 	defer outputFile.Close()
 
 	return &SourceCollector{
-		Input:  input,
-		Output: output,
+		Input:    input,
+		Output:   output,
+		BasePath: filepath.Dir(input),
 	}, nil
 }
 
@@ -55,21 +57,30 @@ func (sc *SourceCollector) Save() error {
 				continue
 			}
 
+			// Check if the child is the output path
+			if child.Root.Path == sc.Output {
+				continue
+			}
+
 			name := child.Root.Name
 			data, err := GetFileContent(child.Root.Path)
 			if err != nil {
 				return err
 			}
 
-			// Check if the file content is empty or the file is the output file
-			if len(data) == 0 || child.Root.Path == sc.Output {
+			// Check if the file content is empty
+			if len(data) == 0 {
 				continue
 			}
 
-			fmt.Println(name, len(data))
+			// Get the relative path of the file
+			relPath, err := filepath.Rel(sc.BasePath, child.Root.Path)
+			if err != nil {
+				return err
+			}
 
 			// Save the file content to the output path
-			if err = SaveFileContent(sc.Output, name, data); err != nil {
+			if err = SaveFileContent(sc.Output, name, relPath, data); err != nil {
 				return err
 			}
 		}

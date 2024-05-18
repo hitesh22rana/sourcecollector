@@ -7,6 +7,9 @@ type SourceCollector struct {
 
 	// Output of the source code
 	Output string
+
+	// BasePath of the source code
+	BasePath string
 }
 
 // SourceTree is a struct that holds the source code tree structure

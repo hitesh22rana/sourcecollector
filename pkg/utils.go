@@ -107,7 +107,7 @@ func GetFileContent(path string) ([]byte, error) {
 }
 
 // SaveFileContent saves the file content to the output path, in append mode
-func SaveFileContent(outputPath string, fileName string, data []byte) error {
+func SaveFileContent(outputPath string, fileName string, relPath string, data []byte) error {
 	// Write the file content to the output file in append mode
 	file, err := os.OpenFile(outputPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -115,7 +115,7 @@ func SaveFileContent(outputPath string, fileName string, data []byte) error {
 	}
 	defer file.Close()
 
-	if _, err = file.WriteString(fmt.Sprintf("File: %s\n```\n", fileName)); err != nil {
+	if _, err = file.WriteString(fmt.Sprintf("Name: %s\nPath: %s\n```\n", fileName, relPath)); err != nil {
 		return fmt.Errorf("failed to write output file")
 	}
 
