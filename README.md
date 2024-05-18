@@ -34,8 +34,8 @@ To run `sourcecollector` locally, follow these steps:
 
     Alternatively, you can build and run the application manually:
     ```bash
-    go build -o bin/sourcecollector cmd/cli/main.go
-    ./bin/sourcecollector --input /path/to/input/directory --output /path/to/output/file.txt
+    $ go build -o bin/sourcecollector cmd/cli/main.go
+    $ ./bin/sourcecollector --input /path/to/input/directory --output /path/to/output/file.txt
     ```
 
 ### Usage
