@@ -510,6 +510,16 @@ func ValidatePath(path string) bool {
 	return err == nil
 }
 
+// IsDirectory checks if the path is a directory or not
+func IsDirectory(path string) bool {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	return fileInfo.IsDir()
+}
+
 // IsSensitiveFile checks if the file or directory is sensitive or not
 func IsSensitiveFile(path string) bool {
 	name := ExtractName(path)

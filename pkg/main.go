@@ -13,6 +13,11 @@ func NewSourceCollector(input string, output string) (*SourceCollector, error) {
 		return nil, fmt.Errorf("input path is invalid")
 	}
 
+	// Validate if input file is a directory or not
+	if !IsDirectory(input) {
+		return nil, fmt.Errorf("input path is not a directory")
+	}
+
 	// Validate if output file is a directory or don't have .txt extension
 	if !ValidatePath(filepath.Dir(output)) || filepath.Ext(output) != ".txt" {
 		return nil, fmt.Errorf("output path is invalid")
