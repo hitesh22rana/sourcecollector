@@ -6,63 +6,16 @@ import (
 	"path/filepath"
 )
 
-var unwantedFiles = []string{
-	"node_modules",
-	"vendor",
-	"dist",
-	"build",
-	"out",
-	"target",
-	"bin",
-	"obj",
-	"Licence",
-	"LICENSE",
-	"venv",
-	"env",
-}
-
-// ValidatePath validates the path
-func ValidatePath(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 // ExtractName extracts the name from the path
 func ExtractName(path string) string {
 	return filepath.Base(path)
 }
 
-// IsMarkdown checks if the file is markdown or not
-func IsMarkdown(path string) bool {
-	return filepath.Ext(path) == ".md"
-}
-
-// IsUnwanted checks if the file or directory is unwanted or not
-func IsUnwanted(path string) bool {
-	name := ExtractName(path)
-
-	for _, unwantedFile := range unwantedFiles {
-		if name == unwantedFile {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsSensitive checks if the file or directory is sensitive or not
-func IsSensitive(path string) bool {
-	name := ExtractName(path)
-
-	// Check for sensitive files, if the starts with . then it is sensitive
-	return name[0] == '.'
-}
-
 // GetSourceTree returns a the source tree
 func GetSourceTree(path string) *SourceTree {
-	// Check if the path is a directory or not
+	// Check if the path is a directory or not and if it is a supported file
 	fileInfo, err := os.Stat(path)
-	if err != nil || IsSensitive(path) || IsUnwanted(path) || IsMarkdown(path) {
+	if err != nil || (!fileInfo.IsDir() && !IsSupportedFile(path) && IsUnwantedFilesAndFolders(path)) {
 		return nil
 	}
 
