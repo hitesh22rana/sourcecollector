@@ -11,7 +11,7 @@ You can install the `sourcecollector` CLI tool in two ways:
 #### 1. Using `go install`
 
 ```bash
-go install -u github.com/hitesh22rana/sourcecollector@latest
+go install github.com/hitesh22rana/sourcecollector@latest
 ```
 
 This will download and install the `sourcecollector` binary in your `$GOPATH/bin` directory.
