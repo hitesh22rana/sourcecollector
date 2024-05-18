@@ -1,4 +1,4 @@
-.PHONY: format-backend vet-backend
+.PHONY: format-backend vet-backend run
 
 format:
 	@go fmt ./...
@@ -7,7 +7,7 @@ vet:
 	@go vet ./...
 
 build: format vet
-	@go build -o bin/sourcecollector cmd/sourcecollector/main.go
+	@go build -o bin/sourcecollector main.go
 
 run: build
-	@./bin/sourcecollector
+	@./bin/sourcecollector --input=$(input) --output=$(output)
