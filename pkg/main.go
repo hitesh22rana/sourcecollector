@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/hitesh22rana/sourcecollector/pkg/validators"
 )
 
 // NewSourceCollector creates a new SourceCollector
 func NewSourceCollector(input string, output string) (*SourceCollector, error) {
 	// Validate the input and output paths
-	if !ValidatePath(input) {
+	if !IsValidPath(input) {
 		return nil, fmt.Errorf("input path is invalid")
 	}
 
@@ -19,7 +21,7 @@ func NewSourceCollector(input string, output string) (*SourceCollector, error) {
 	}
 
 	// Validate if output file is a directory or don't have .txt extension
-	if !ValidatePath(filepath.Dir(output)) || filepath.Ext(output) != ".txt" {
+	if !IsValidPath(filepath.Dir(output)) || filepath.Ext(output) != ".txt" {
 		return nil, fmt.Errorf("output path is invalid")
 	}
 
@@ -30,30 +32,63 @@ func NewSourceCollector(input string, output string) (*SourceCollector, error) {
 	}
 	defer outputFile.Close()
 
+	// Make a new gitignore based validator
+	var validator validators.Validator
+	validator, err = validators.NewGitIgnoreBasedValidator(input)
+
+	// If the gitIgnoreBasedValidator is nil, then make a new default validator
+	if err != nil {
+		fmt.Println("No .gitignore file found, proceeding with default settings.")
+		validator = validators.NewDefaultValidator()
+	}
+
 	return &SourceCollector{
-		Input:    input,
-		Output:   output,
-		BasePath: filepath.Dir(input),
+		Input:     input,
+		Output:    output,
+		BasePath:  filepath.Dir(input),
+		Validator: validator,
 	}, nil
 }
 
-// Save saves the source tree to the output path
-func (sc *SourceCollector) Save() error {
-	// Get the source tree of the input path
-	sourceTree := GenerateSourceTree(sc.Input)
+// GenerateSourceTree generates the source tree
+func (sc *SourceCollector) GenerateSourceTree() (*SourceTree, error) {
+	// Generate the source tree
+	sourceTree := sc.generateSourceTree(sc.Input)
 	if sourceTree == nil {
-		return fmt.Errorf("failed to get source tree")
+		return nil, fmt.Errorf("no files found")
 	}
 
-	// Generate source code files tree structure and add it to the output file content
-	sourceTreeStructure, err := GetSourceTreeStructure(sourceTree, 0)
-	if err != nil {
-		return err
+	return sourceTree, nil
+}
+
+// GenerateSourceTreeStructure generates the source tree structure in string format
+func (sc *SourceCollector) GenerateSourceTreeStructure(tree *SourceTree) (string, error) {
+	// Check if the tree is nil
+	if tree == nil {
+		return "", fmt.Errorf("failed to generate source tree structure")
 	}
 
-	// Add the source code files tree structure to the output file and save it
-	if err = SaveFileContent(sc.Output, []byte(fmt.Sprintf("Source code files structure\n\n%s\n\n", sourceTreeStructure))); err != nil {
-		return err
+	// Generate the tree structure
+	sourceTreeStructure := sc.generateSourceTreeStructure(tree, 0)
+	if sourceTreeStructure == "" {
+		return "", fmt.Errorf("failed to generate source tree structure")
+	}
+
+	return sourceTreeStructure, nil
+}
+
+// Save saves the source tree to the output path
+func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure string) error {
+	// Check if the source tree is nil
+	if sourceTree == nil {
+		return fmt.Errorf("source tree is nil, failed to save the source tree to the output file")
+	}
+
+	// If sourceTreeStructure is not provided, then skip saving the source tree structure else, add the source code files tree structure to the output file and save it
+	if sourceTreeStructure != "" {
+		if err := SaveFileContent(sc.Output, []byte(fmt.Sprintf("Source code files structure\n\n%s\n\n", sourceTreeStructure))); err != nil {
+			return err
+		}
 	}
 
 	queue := []*SourceTree{sourceTree}

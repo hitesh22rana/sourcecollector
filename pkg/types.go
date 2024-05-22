@@ -1,5 +1,9 @@
 package pkg
 
+import (
+	"github.com/hitesh22rana/sourcecollector/pkg/validators"
+)
+
 // SourceCollector is a struct that holds the input and output of the source code
 type SourceCollector struct {
 	// Input of the source code
@@ -10,6 +14,9 @@ type SourceCollector struct {
 
 	// BasePath of the source code
 	BasePath string
+
+	// Validator of the source code
+	Validator validators.Validator
 }
 
 // SourceTree is a struct that holds the source code tree structure

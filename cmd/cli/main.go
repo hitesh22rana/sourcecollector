@@ -24,7 +24,19 @@ Perfect for feeding your files to AI tools without any fuss.`,
 			os.Exit(1)
 		}
 
-		if err := sc.Save(); err != nil {
+		sourceTree, err := sc.GenerateSourceTree()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		sourcetreeStructure, err := sc.GenerateSourceTreeStructure(sourceTree)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		if err := sc.Save(sourceTree, sourcetreeStructure); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
