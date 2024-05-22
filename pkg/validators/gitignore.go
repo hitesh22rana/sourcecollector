@@ -30,8 +30,8 @@ func NewGitIgnoreBasedValidator(path string) (*GitIgnoreBasedValidator, error) {
 
 // IsIgnored checks if the file is ignored by .gitignore
 func (v *GitIgnoreBasedValidator) IsIgnored(path string) bool {
-	isIgnored := isSensitiveFile(path) || isMarkdownFile(path)
-	if isIgnored {
+	// Check if the file is a sensitive file or a markdown file
+	if isSensitiveFile(path) || isMarkdownFile(path) {
 		return true
 	}
 

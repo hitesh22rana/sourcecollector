@@ -509,6 +509,16 @@ type Validator interface {
 	IsIgnored(path string) bool
 }
 
+// Check if the path is directory or not
+func isDirectory(path string) bool {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	return fileInfo.IsDir()
+}
+
 // isSensitiveFile checks if the file or directory is sensitive or not
 func isSensitiveFile(path string) bool {
 	name := filepath.Base(path)
