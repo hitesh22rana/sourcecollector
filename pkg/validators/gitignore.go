@@ -40,6 +40,11 @@ func (v *GitIgnoreBasedValidator) IsIgnored(path string) bool {
 		return true
 	}
 
+	// Check if the file is not a directory and is not a programming file
+	if !isDirectory(path) && !isProgrammingFile(path) {
+		return true
+	}
+
 	// Lastly, check if the file is ignored by default
 	return isUnwantedFilesAndFolders(path)
 }
