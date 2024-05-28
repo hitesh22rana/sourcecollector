@@ -62,14 +62,14 @@ func (sc *SourceCollector) GenerateSourceTree() (*SourceTree, error) {
 }
 
 // GenerateSourceTreeStructure generates the source tree structure in string format
-func (sc *SourceCollector) GenerateSourceTreeStructure(tree *SourceTree) (string, error) {
-	// Check if the tree is nil
-	if tree == nil {
+func (sc *SourceCollector) GenerateSourceTreeStructure(sourceTree *SourceTree) (string, error) {
+	// Check if the sourceTree is nil
+	if sourceTree == nil {
 		return "", fmt.Errorf("failed to generate source tree structure")
 	}
 
 	// Generate the tree structure
-	sourceTreeStructure := sc.generateSourceTreeStructure(tree, 0)
+	sourceTreeStructure := sc.generateSourceTreeStructure(sourceTree, 0)
 	if sourceTreeStructure == "" {
 		return "", fmt.Errorf("failed to generate source tree structure")
 	}
@@ -84,12 +84,38 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 		return fmt.Errorf("source tree is nil, failed to save the source tree to the output file")
 	}
 
+	// Open the output file in append mode
+	file, err := os.OpenFile(sc.Output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open output file")
+	}
+	defer file.Close()
+
 	// If sourceTreeStructure is not provided, then skip saving the source tree structure else, add the source code files tree structure to the output file and save it
 	if sourceTreeStructure != "" {
-		if err := SaveFileContent(sc.Output, []byte(fmt.Sprintf("Source code files structure\n\n%s\n\n", sourceTreeStructure))); err != nil {
-			return err
+		if _, err := file.Write([]byte(fmt.Sprintf("Source code files structure\n\n%s\n\n", sourceTreeStructure))); err != nil {
+			return fmt.Errorf("failed to write output file")
 		}
 	}
+
+	// Make a data channel to save the source code files
+	dataChan := make(chan []byte)
+
+	// Done channel to wait for the goroutine to finish
+	done := make(chan bool)
+
+	// Save the source code files, pick the data from the data channel and save it to the output file
+	go func(dataChan chan []byte) {
+		// defer wg.Done()
+		for data := range dataChan {
+			if _, err := file.Write(data); err != nil {
+				fmt.Println("failed to write output file", err)
+			}
+		}
+
+		// Signal the done channel
+		done <- true
+	}(dataChan)
 
 	queue := []*SourceTree{sourceTree}
 	for len(queue) > 0 {
@@ -138,12 +164,19 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 			data = append([]byte(fmt.Sprintf("Name: %s\nPath: %s\n```\n", name, relPath)), data...)
 			data = append(data, []byte("\n```\n\n")...)
 
-			// Save the file content
-			if err = SaveFileContent(sc.Output, data); err != nil {
-				return err
-			}
+			// Add the file content to the data channel
+			dataChan <- data
 		}
 	}
+
+	// Close the data channel after all data has been sent
+	close(dataChan)
+
+	// Wait for the goroutine to finish
+	<-done
+
+	// Close the done channel
+	close(done)
 
 	return nil
 }

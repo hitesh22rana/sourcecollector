@@ -146,361 +146,360 @@ var (
 		".rar", // RAR compressed files
 	}
 
-	validProgrammingFileExtensions = []string{
-		".1c",          // 1C Enterprise
-		".4th",         // Forth
-		".6pl",         // Perl
-		".6pm",         // Perl
-		".aba",         // Ada
-		".adb",         // Ada
-		".ads",         // Ada
-		".agc",         // AGC
-		".ahk",         // AutoHotkey
-		".aj",          // AspectJ
-		".als",         // Alloy
-		".apl",         // APL
-		".applescript", // AppleScript
-		".arc",         // Arc
-		".as",          // ActionScript
-		".asm",         // Assembly
-		".asp",         // ASP
-		".aspx",        // ASP.NET
-		".awk",         // AWK
-		".bas",         // BASIC
-		".bash",        // Bash
-		".bat",         // Batch file
-		".bb",          // BlitzBasic
-		".bbx",         // Berry
-		".bdf",         // BDF font
-		".bf",          // Brainfuck
-		".bmx",         // BlitzMax
-		".boo",         // Boo
-		".brs",         // BrightScript
-		".bsv",         // Bluespec SystemVerilog
-		".c",           // C
-		".c++",         // C++
-		".cbl",         // COBOL
-		".cc",          // C++
-		".ceylon",      // Ceylon
-		".chpl",        // Chapel
-		".cjs",         // CommonJS
-		".cl",          // Common Lisp
-		".clj",         // Clojure
-		".cljs",        // ClojureScript
-		".cls",         // Visual Basic
-		".cmake",       // CMake
-		".cob",         // COBOL
-		".coffee",      // CoffeeScript
-		".cp",          // C++
-		".cpp",         // C++
-		".cpy",         // Python
-		".cr",          // Crystal
-		".cs",          // C#
-		".csh",         // C Shell
-		".cson",        // CoffeeScript Object Notation
-		".csproj",      // C#
-		".css",         // CSS
-		".cu",          // CUDA
-		".cxx",         // C++
-		".d",           // D
-		".dart",        // Dart
-		".dats",        // ATS
-		".dbs",         // SQL
-		".dcl",         // Clean
-		".decls",       // Clean
-		".diderot",     // Diderot
-		".dita",        // DITA
-		".ditamap",     // DITA
-		".djt",         // D
-		".dml",         // D
-		".doh",         // D
-		".dot",         // Graphviz
-		".dpr",         // Delphi
-		".druby",       // dRuby
-		".dtx",         // LaTeX
-		".dylan",       // Dylan
-		".dyl",         // Dylan
-		".e",           // Eiffel
-		".ec",          // C
-		".eh",          // C
-		".el",          // Emacs Lisp
-		".elm",         // Elm
-		".em",          // E
-		".erl",         // Erlang
-		".ex",          // Elixir
-		".exs",         // Elixir
-		".f",           // Fortran
-		".f90",         // Fortran
-		".f95",         // Fortran
-		".factor",      // Factor
-		".fan",         // Fantom
-		".fth",         // Forth
-		".fish",        // fish shell
-		".for",         // Fortran
-		".forth",       // Forth
-		".fs",          // F#
-		".fsi",         // F#
-		".fsscript",    // F#
-		".fsx",         // F#
-		".g",           // G-code
-		".gap",         // GAP
-		".gawk",        // AWK
-		".gdb",         // GDB
-		".gd",          // GDScript
-		".gdns",        // Godot
-		".ged",         // Godot
-		".glf",         // GLSL
-		".gml",         // GameMaker Language
-		".go",          // Go
-		".gs",          // Google Apps Script
-		".gsp",         // Groovy Server Pages
-		".gst",         // GAMS
-		".gsx",         // GAMS
-		".gvy",         // Groovy
-		".h",           // C/C++
-		".hack",        // Hack
-		".haml",        // Haml
-		".handlebars",  // Handlebars
-		".hbs",         // Handlebars
-		".hs",          // Haskell
-		".html",        // HTML
-		".htm",         // HTML
-		".hx",          // Haxe
-		".hxx",         // C++
-		".ice",         // ICE
-		".iced",        // IcedCoffeeScript
-		".idr",         // Idris
-		".ijs",         // J
-		".imba",        // Imba
-		".inc",         // PHP
-		".ini",         // Configuration file
-		".ino",         // Arduino
-		".io",          // Io
-		".j",           // Java
-		".jade",        // Jade
-		".java",        // Java
-		".jl",          // Julia
-		".js",          // JavaScript
-		".jsb",         // JavaScript
-		".jscad",       // OpenJSCAD
-		".jsfl",        // JavaScript
-		".jsh",         // JavaScript
-		".json",        // JSON
-		".json5",       // JSON5
-		".jsx",         // JavaScript
-		".jflex",       // JFlex
-		".jison",       // Jison
-		".jisonlex",    // Jison Lex
-		".jl",          // Julia
-		".kak",         // Kakoune
-		".kicad_pcb",   // KiCad
-		".kicad_sch",   // KiCad
-		".kit",         // Kite
-		".kt",          // Kotlin
-		".kts",         // Kotlin
-		".kxi",         // Kite
-		".kxml",        // Kite
-		".l",           // Lisp
-		".lagda",       // Agda
-		".lagda.md",    // Agda
-		".lagda.rst",   // Agda
-		".lean",        // Lean
-		".less",        // LESS
-		".lhs",         // Literate Haskell
-		".lid",         // D
-		".lisp",        // Lisp
-		".lkt",         // Inkling
-		".lmo",         // Limbo
-		".lua",         // Lua
-		".ly",          // LilyPond
-		".m",           // Objective-C
-		".mac",         // M4
-		".mak",         // Makefile
-		".make",        // Makefile
-		".man",         // Unix Manual
-		".markdown",    // Markdown
-		".marko",       // Marko
-		".mat",         // MATLAB
-		".mata",        // MATLAB
-		".matlab",      // MATLAB
-		".maxpat",      // Max
-		".md",          // Markdown
-		".mediawiki",   // MediaWiki
-		".mirah",       // Mirah
-		".mjml",        // MJML
-		".mjs",         // JavaScript
-		".ml",          // OCaml
-		".mli",         // OCaml
-		".mo",          // Modula-2
-		".monkey",      // Monkey
-		".moon",        // MoonScript
-		".ms",          // Common Lisp
-		".mumps",       // MUMPS
-		".mustache",    // Mustache
-		".mxml",        // Flex
-		".n",           // N
-		".nawk",        // AWK
-		".nb",          // Mathematica
-		".ncl",         // NCL
-		".nl",          // GAMS
-		".nix",         // Nix
-		".numpy",       // Python
-		".nu",          // Nu
-		".num",         // Python
-		".nut",         // Squirrel
-		".o",           // Object file
-		".obj",         // Object file
-		".odin",        // Odin
-		".omgrofl",     // Omgrofl
-		".org",         // Org-mode
-		".ox",          // Ox
-		".p",           // Pascal
-		".p6",          // Perl 6
-		".pac",         // JavaScript
-		".parrot",      // Parrot
-		".pas",         // Pascal
-		".patch",       // Patch
-		".pat",         // D
-		".pawn",        // Pawn
-		".pbf",         // D
-		".pbi",         // PureBasic
-		".pde",         // Processing
-		".perl",        // Perl
-		".php",         // PHP
-		".phps",        // PHP
-		".phtml",       // PHP
-		".pig",         // Pig
-		".pike",        // Pike
-		".pl",          // Perl
-		".pl6",         // Perl 6
-		".pls",         // PLSQL
-		".plx",         // Perl
-		".pm",          // Perl
-		".pml",         // PHP
-		".pm6",         // Perl 6
-		".pmod",        // D
-		".pod",         // Perl
-		".pony",        // Pony
-		".pp",          // Puppet
-		".prg",         // FoxPro
-		".pro",         // Prolog
-		".prolog",      // Prolog
-		".ps1",         // PowerShell
-		".psc1",        // PowerShell
-		".psm1",        // PowerShell
-		".purs",        // PureScript
-		".py",          // Python
-		".py3",         // Python
-		".pyi",         // Python
-		".pyx",         // Cython
-		".qml",         // QML
-		".r",           // R
-		".r2",          // Rebol
-		".r2s",         // D
-		".raku",        // Raku
-		".rb",          // Ruby
-		".rbs",         // Ruby
-		".rbw",         // Ruby
-		".re",          // Reason
-		".rei",         // Reason
-		".res",         // D
-		".rexx",        // Rexx
-		".rhtml",       // HTML
-		".ring",        // Ring
-		".rkt",         // Racket
-		".rktd",        // Racket
-		".rktl",        // Racket
-		".rmd",         // R
-		".robot",       // Robot Framework
-		".rs",          // Rust
-		".rsh",         // C
-		".rss",         // RSS
-		".rst",         // reStructuredText
-		".rsvp",        // D
-		".rt",          // RealTime
-		".rtf",         // Rich Text Format
-		".s",           // Assembly
-		".sage",        // SageMath
-		".sas",         // SAS
-		".sass",        // Sass
-		".scala",       // Scala
-		".scm",         // Scheme
-		".scss",        // Sass
-		".sed",         // sed
-		".self",        // Self
-		".shader",      // Shader
-		".sh",          // Shell script
-		".shen",        // Shen
-		".sig",         // Standard ML
-		".sls",         // Scheme
-		".sml",         // Standard ML
-		".sol",         // Solidity
-		".sqf",         // SQF
-		".sql",         // SQL
-		".ss",          // Scheme
-		".st",          // Smalltalk
-		".swift",       // Swift
-		".t",           // Perl
-		".tac",         // Python
-		".tcc",         // C++
-		".tcl",         // Tcl
-		".tex",         // TeX
-		".thy",         // Isabelle
-		".toml",        // TOML
-		".ts",          // TypeScript
-		".tsx",         // TypeScript
-		".tu",          // D
-		".twig",        // Twig
-		".uc",          // UnrealScript
-		".ul",          // D
-		".ur",          // Ur
-		".urs",         // Ur
-		".v",           // Verilog
-		".vala",        // Vala
-		".vapi",        // Vala
-		".vb",          // Visual Basic
-		".vba",         // Visual Basic for Applications
-		".vbproj",      // Visual Basic
-		".vbs",         // VBScript
-		".vhd",         // VHDL
-		".vhdl",        // VHDL
-		".vim",         // Vim script
-		".vue",         // Vue.js
-		".w",           // W
-		".w6",          // Perl 6
-		".wat",         // WebAssembly
-		".webidl",      // WebIDL
-		".wisp",        // Wisp
-		".wl",          // Wolfram Language
-		".wsf",         // Windows Script File
-		".wsgi",        // Python
-		".wxs",         // XML
-		".wxi",         // XML
-		".wxl",         // XML
-		".x",           // X
-		".x10",         // X10
-		".xht",         // XHTML
-		".xhtml",       // XHTML
-		".xi",          // X
-		".xm",          // XML
-		".xmi",         // XML
-		".xpl",         // XProc
-		".xq",          // XQuery
-		".xql",         // XQuery
-		".xqm",         // XQuery
-		".xquery",      // XQuery
-		".xqy",         // XQuery
-		".xs",          // XS
-		".xsl",         // XSLT
-		".xslt",        // XSLT
-		".xtend",       // Xtend
-		".y",           // Yacc
-		".yml",         // YAML
-		".yaml",        // YAML
-		".zeek",        // Zeek
-		".zep",         // Zephir
-		".zig",         // Zig
-		".zsh",         // Zsh
+	validProgrammingFileExtensions = map[string]struct{}{
+		".1c":          {}, // 1C Enterprise
+		".4th":         {}, // Forth
+		".6pl":         {}, // Perl
+		".6pm":         {}, // Perl
+		".aba":         {}, // Ada
+		".adb":         {}, // Ada
+		".ads":         {}, // Ada
+		".agc":         {}, // AGC
+		".ahk":         {}, // AutoHotkey
+		".aj":          {}, // AspectJ
+		".als":         {}, // Alloy
+		".apl":         {}, // APL
+		".applescript": {}, // AppleScript
+		".arc":         {}, // Arc
+		".as":          {}, // ActionScript
+		".asm":         {}, // Assembly
+		".asp":         {}, // ASP
+		".aspx":        {}, // ASP.NET
+		".awk":         {}, // AWK
+		".bas":         {}, // BASIC
+		".bash":        {}, // Bash
+		".bat":         {}, // Batch file
+		".bb":          {}, // BlitzBasic
+		".bbx":         {}, // Berry
+		".bdf":         {}, // BDF font
+		".bf":          {}, // Brainfuck
+		".bmx":         {}, // BlitzMax
+		".boo":         {}, // Boo
+		".brs":         {}, // BrightScript
+		".bsv":         {}, // Bluespec SystemVerilog
+		".c":           {}, // C
+		".c+:":         {}, // C++
+		".cbl":         {}, // COBOL
+		".cc":          {}, // C++
+		".ceylon":      {}, // Ceylon
+		".chpl":        {}, // Chapel
+		".cjs":         {}, // CommonJS
+		".cl":          {}, // Common Lisp
+		".clj":         {}, // Clojure
+		".cljs":        {}, // ClojureScript
+		".cls":         {}, // Visual Basic
+		".cmake":       {}, // CMake
+		".cob":         {}, // COBOL
+		".coffee":      {}, // CoffeeScript
+		".cp":          {}, // C++
+		".cpp":         {}, // C++
+		".cpy":         {}, // Python
+		".cr":          {}, // Crystal
+		".cs":          {}, // C#
+		".csh":         {}, // C Shell
+		".cson":        {}, // CoffeeScript Object Notation
+		".csproj":      {}, // C#
+		".css":         {}, // CSS
+		".cu":          {}, // CUDA
+		".cxx":         {}, // C++
+		".d":           {}, // D
+		".dart":        {}, // Dart
+		".dats":        {}, // ATS
+		".dbs":         {}, // SQL
+		".dcl":         {}, // Clean
+		".decls":       {}, // Clean
+		".diderot":     {}, // Diderot
+		".dita":        {}, // DITA
+		".ditamap":     {}, // DITA
+		".djt":         {}, // D
+		".dml":         {}, // D
+		".doh":         {}, // D
+		".dot":         {}, // Graphviz
+		".dpr":         {}, // Delphi
+		".druby":       {}, // dRuby
+		".dtx":         {}, // LaTeX
+		".dylan":       {}, // Dylan
+		".dyl":         {}, // Dylan
+		".e":           {}, // Eiffel
+		".ec":          {}, // C
+		".eh":          {}, // C
+		".el":          {}, // Emacs Lisp
+		".elm":         {}, // Elm
+		".em":          {}, // E
+		".erl":         {}, // Erlang
+		".ex":          {}, // Elixir
+		".exs":         {}, // Elixir
+		".f":           {}, // Fortran
+		".f90":         {}, // Fortran
+		".f95":         {}, // Fortran
+		".factor":      {}, // Factor
+		".fan":         {}, // Fantom
+		".fth":         {}, // Forth
+		".fish":        {}, // fish shell
+		".for":         {}, // Fortran
+		".forth":       {}, // Forth
+		".fs":          {}, // F#
+		".fsi":         {}, // F#
+		".fsscript":    {}, // F#
+		".fsx":         {}, // F#
+		".g":           {}, // G-code
+		".gap":         {}, // GAP
+		".gawk":        {}, // AWK
+		".gdb":         {}, // GDB
+		".gd":          {}, // GDScript
+		".gdns":        {}, // Godot
+		".ged":         {}, // Godot
+		".glf":         {}, // GLSL
+		".gml":         {}, // GameMaker Language
+		".go":          {}, // Go
+		".gs":          {}, // Google Apps Script
+		".gsp":         {}, // Groovy Server Pages
+		".gst":         {}, // GAMS
+		".gsx":         {}, // GAMS
+		".gvy":         {}, // Groovy
+		".h":           {}, // C/C++
+		".hack":        {}, // Hack
+		".haml":        {}, // Haml
+		".handlebars":  {}, // Handlebars
+		".hbs":         {}, // Handlebars
+		".hs":          {}, // Haskell
+		".html":        {}, // HTML
+		".htm":         {}, // HTML
+		".hx":          {}, // Haxe
+		".hxx":         {}, // C++
+		".ice":         {}, // ICE
+		".iced":        {}, // IcedCoffeeScript
+		".idr":         {}, // Idris
+		".ijs":         {}, // J
+		".imba":        {}, // Imba
+		".inc":         {}, // PHP
+		".ini":         {}, // Configuration file
+		".ino":         {}, // Arduino
+		".io":          {}, // Io
+		".j":           {}, // Java
+		".jade":        {}, // Jade
+		".java":        {}, // Java
+		".jl":          {}, // Julia
+		".js":          {}, // JavaScript
+		".jsb":         {}, // JavaScript
+		".jscad":       {}, // OpenJSCAD
+		".jsfl":        {}, // JavaScript
+		".jsh":         {}, // JavaScript
+		".json":        {}, // JSON
+		".json5":       {}, // JSON5
+		".jsx":         {}, // JavaScript
+		".jflex":       {}, // JFlex
+		".jison":       {}, // Jison
+		".jisonlex":    {}, // Jison Lex
+		".kak":         {}, // Kakoune
+		".kicad_pcb":   {}, // KiCad
+		".kicad_sch":   {}, // KiCad
+		".kit":         {}, // Kite
+		".kt":          {}, // Kotlin
+		".kts":         {}, // Kotlin
+		".kxi":         {}, // Kite
+		".kxml":        {}, // Kite
+		".l":           {}, // Lisp
+		".lagda":       {}, // Agda
+		".lagda.md":    {}, // Agda
+		".lagda.rst":   {}, // Agda
+		".lean":        {}, // Lean
+		".less":        {}, // LESS
+		".lhs":         {}, // Literate Haskell
+		".lid":         {}, // D
+		".lisp":        {}, // Lisp
+		".lkt":         {}, // Inkling
+		".lmo":         {}, // Limbo
+		".lua":         {}, // Lua
+		".ly":          {}, // LilyPond
+		".m":           {}, // Objective-C
+		".mac":         {}, // M4
+		".mak":         {}, // Makefile
+		".make":        {}, // Makefile
+		".man":         {}, // Unix Manual
+		".markdown":    {}, // Markdown
+		".marko":       {}, // Marko
+		".mat":         {}, // MATLAB
+		".mata":        {}, // MATLAB
+		".matlab":      {}, // MATLAB
+		".maxpat":      {}, // Max
+		".md":          {}, // Markdown
+		".mediawiki":   {}, // MediaWiki
+		".mirah":       {}, // Mirah
+		".mjml":        {}, // MJML
+		".mjs":         {}, // JavaScript
+		".ml":          {}, // OCaml
+		".mli":         {}, // OCaml
+		".mo":          {}, // Modula-2
+		".monkey":      {}, // Monkey
+		".moon":        {}, // MoonScript
+		".ms":          {}, // Common Lisp
+		".mumps":       {}, // MUMPS
+		".mustache":    {}, // Mustache
+		".mxml":        {}, // Flex
+		".n":           {}, // N
+		".nawk":        {}, // AWK
+		".nb":          {}, // Mathematica
+		".ncl":         {}, // NCL
+		".nl":          {}, // GAMS
+		".nix":         {}, // Nix
+		".numpy":       {}, // Python
+		".nu":          {}, // Nu
+		".num":         {}, // Python
+		".nut":         {}, // Squirrel
+		".o":           {}, // Object file
+		".obj":         {}, // Object file
+		".odin":        {}, // Odin
+		".omgrofl":     {}, // Omgrofl
+		".org":         {}, // Org-mode
+		".ox":          {}, // Ox
+		".p":           {}, // Pascal
+		".p6":          {}, // Perl 6
+		".pac":         {}, // JavaScript
+		".parrot":      {}, // Parrot
+		".pas":         {}, // Pascal
+		".patch":       {}, // Patch
+		".pat":         {}, // D
+		".pawn":        {}, // Pawn
+		".pbf":         {}, // D
+		".pbi":         {}, // PureBasic
+		".pde":         {}, // Processing
+		".perl":        {}, // Perl
+		".php":         {}, // PHP
+		".phps":        {}, // PHP
+		".phtml":       {}, // PHP
+		".pig":         {}, // Pig
+		".pike":        {}, // Pike
+		".pl":          {}, // Perl
+		".pl6":         {}, // Perl 6
+		".pls":         {}, // PLSQL
+		".plx":         {}, // Perl
+		".pm":          {}, // Perl
+		".pml":         {}, // PHP
+		".pm6":         {}, // Perl 6
+		".pmod":        {}, // D
+		".pod":         {}, // Perl
+		".pony":        {}, // Pony
+		".pp":          {}, // Puppet
+		".prg":         {}, // FoxPro
+		".pro":         {}, // Prolog
+		".prolog":      {}, // Prolog
+		".ps1":         {}, // PowerShell
+		".psc1":        {}, // PowerShell
+		".psm1":        {}, // PowerShell
+		".purs":        {}, // PureScript
+		".py":          {}, // Python
+		".py3":         {}, // Python
+		".pyi":         {}, // Python
+		".pyx":         {}, // Cython
+		".qml":         {}, // QML
+		".r":           {}, // R
+		".r2":          {}, // Rebol
+		".r2s":         {}, // D
+		".raku":        {}, // Raku
+		".rb":          {}, // Ruby
+		".rbs":         {}, // Ruby
+		".rbw":         {}, // Ruby
+		".re":          {}, // Reason
+		".rei":         {}, // Reason
+		".res":         {}, // D
+		".rexx":        {}, // Rexx
+		".rhtml":       {}, // HTML
+		".ring":        {}, // Ring
+		".rkt":         {}, // Racket
+		".rktd":        {}, // Racket
+		".rktl":        {}, // Racket
+		".rmd":         {}, // R
+		".robot":       {}, // Robot Framework
+		".rs":          {}, // Rust
+		".rsh":         {}, // C
+		".rss":         {}, // RSS
+		".rst":         {}, // reStructuredText
+		".rsvp":        {}, // D
+		".rt":          {}, // RealTime
+		".rtf":         {}, // Rich Text Format
+		".s":           {}, // Assembly
+		".sage":        {}, // SageMath
+		".sas":         {}, // SAS
+		".sass":        {}, // Sass
+		".scala":       {}, // Scala
+		".scm":         {}, // Scheme
+		".scss":        {}, // Sass
+		".sed":         {}, // sed
+		".self":        {}, // Self
+		".shader":      {}, // Shader
+		".sh":          {}, // Shell script
+		".shen":        {}, // Shen
+		".sig":         {}, // Standard ML
+		".sls":         {}, // Scheme
+		".sml":         {}, // Standard ML
+		".sol":         {}, // Solidity
+		".sqf":         {}, // SQF
+		".sql":         {}, // SQL
+		".ss":          {}, // Scheme
+		".st":          {}, // Smalltalk
+		".swift":       {}, // Swift
+		".t":           {}, // Perl
+		".tac":         {}, // Python
+		".tcc":         {}, // C++
+		".tcl":         {}, // Tcl
+		".tex":         {}, // TeX
+		".thy":         {}, // Isabelle
+		".toml":        {}, // TOML
+		".ts":          {}, // TypeScript
+		".tsx":         {}, // TypeScript
+		".tu":          {}, // D
+		".twig":        {}, // Twig
+		".uc":          {}, // UnrealScript
+		".ul":          {}, // D
+		".ur":          {}, // Ur
+		".urs":         {}, // Ur
+		".v":           {}, // Verilog
+		".vala":        {}, // Vala
+		".vapi":        {}, // Vala
+		".vb":          {}, // Visual Basic
+		".vba":         {}, // Visual Basic for Applications
+		".vbproj":      {}, // Visual Basic
+		".vbs":         {}, // VBScript
+		".vhd":         {}, // VHDL
+		".vhdl":        {}, // VHDL
+		".vim":         {}, // Vim script
+		".vue":         {}, // Vue.js
+		".w":           {}, // W
+		".w6":          {}, // Perl 6
+		".wat":         {}, // WebAssembly
+		".webidl":      {}, // WebIDL
+		".wisp":        {}, // Wisp
+		".wl":          {}, // Wolfram Language
+		".wsf":         {}, // Windows Script File
+		".wsgi":        {}, // Python
+		".wxs":         {}, // XML
+		".wxi":         {}, // XML
+		".wxl":         {}, // XML
+		".x":           {}, // X
+		".x10":         {}, // X10
+		".xht":         {}, // XHTML
+		".xhtml":       {}, // XHTML
+		".xi":          {}, // X
+		".xm":          {}, // XML
+		".xmi":         {}, // XML
+		".xpl":         {}, // XProc
+		".xq":          {}, // XQuery
+		".xql":         {}, // XQuery
+		".xqm":         {}, // XQuery
+		".xquery":      {}, // XQuery
+		".xqy":         {}, // XQuery
+		".xs":          {}, // XS
+		".xsl":         {}, // XSLT
+		".xslt":        {}, // XSLT
+		".xtend":       {}, // Xtend
+		".y":           {}, // Yacc
+		".yml":         {}, // YAML
+		".yaml":        {}, // YAML
+		".zeek":        {}, // Zeek
+		".zep":         {}, // Zephir
+		".zig":         {}, // Zig
+		".zsh":         {}, // Zsh
 	}
 )
 
@@ -561,22 +560,9 @@ func isMarkdownFile(path string) bool {
 func isProgrammingFile(path string) bool {
 	ext := filepath.Ext(path)
 
-	// Check if the file is a programming file, using binary search
-	low := 0
-	high := len(validProgrammingFileExtensions) - 1
-	for low <= high {
-		mid := low + (high-low)/2
-		extension := validProgrammingFileExtensions[mid]
-
-		if extension == ext {
-			return true
-		}
-
-		if extension < ext {
-			low = mid + 1
-		} else {
-			high = mid - 1
-		}
+	// Check if the file is a programming file
+	if _, ok := validProgrammingFileExtensions[ext]; ok {
+		return true
 	}
 
 	return false
