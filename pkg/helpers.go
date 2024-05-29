@@ -51,10 +51,10 @@ func (sc *SourceCollector) generateSourceTreeStructure(tree *SourceTree, level i
 	// Generate the tree structure
 	var treeStructure string
 	for i := 0; i < level; i++ {
-		treeStructure += "|  "
+		treeStructure += "│  "
 	}
 
-	treeStructure += "|--" + tree.Root.Name + "\n"
+	treeStructure += "├──" + tree.Root.Name + "\n"
 
 	for _, node := range tree.Nodes {
 		// Check if the node is nil
