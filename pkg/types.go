@@ -17,6 +17,9 @@ type SourceCollector struct {
 
 	// Validator of the source code
 	Validator validators.Validator
+
+	// Max Concurrency to be used for io operations
+	MaxConcurrency int
 }
 
 // SourceTree is a struct that holds the source code tree structure
@@ -35,4 +38,10 @@ type SourceNode struct {
 
 	// Path of the source code node
 	Path string
+}
+
+// queueChanData is a struct that holds the name and path of the source code node
+type queueChanData struct {
+	name string
+	path string
 }

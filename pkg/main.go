@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync"
 
 	"github.com/hitesh22rana/sourcecollector/pkg/validators"
 )
@@ -43,10 +45,11 @@ func NewSourceCollector(input string, output string) (*SourceCollector, error) {
 	}
 
 	return &SourceCollector{
-		Input:     input,
-		Output:    output,
-		BasePath:  filepath.Dir(input),
-		Validator: validator,
+		Input:          input,
+		Output:         output,
+		BasePath:       filepath.Dir(input),
+		Validator:      validator,
+		MaxConcurrency: runtime.NumCPU(),
 	}, nil
 }
 
@@ -106,7 +109,6 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 
 	// Save the source code files, pick the data from the data channel and save it to the output file
 	go func(dataChan chan []byte) {
-		// defer wg.Done()
 		for data := range dataChan {
 			if _, err := file.Write(data); err != nil {
 				fmt.Println("failed to write output file", err)
@@ -116,6 +118,46 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 		// Signal the done channel
 		done <- true
 	}(dataChan)
+
+	// Make a queue channel to take the source code file path as input and save the source code files to the data channel
+	queueChan := make(chan queueChanData)
+
+	// Pick the source code file path from the queue channel and save the source code files to the data channel, make multiple goroutines to read the source code files concurrently max upto the number of CPUs available
+	go func(queueChan chan queueChanData, dataChan chan []byte) {
+		// Waitgroup to wait for the goroutines to finish
+		var wg sync.WaitGroup
+
+		// Make multiple goroutines to read the process the source code files concurrently
+		for i := 0; i < sc.MaxConcurrency; i++ {
+			wg.Add(1)
+			go func(queueChan chan queueChanData) {
+				defer wg.Done()
+				for queueData := range queueChan {
+					name := queueData.name
+					path := queueData.path
+
+					data, err := GetFileContent(path)
+					if err != nil {
+						fmt.Println("failed to get file content", err)
+					}
+
+					// Get the relative path of the file
+					relPath, _ := filepath.Rel(sc.BasePath, path)
+					data = append([]byte(fmt.Sprintf("Name: %s\nPath: %s\n```\n", name, relPath)), data...)
+					data = append(data, []byte("\n```\n\n")...)
+
+					// Add the file content to the data channel
+					dataChan <- data
+				}
+			}(queueChan)
+		}
+
+		// Wait for the goroutines to finish
+		wg.Wait()
+
+		// Close the data channel
+		close(dataChan)
+	}(queueChan, dataChan)
 
 	queue := []*SourceTree{sourceTree}
 	for len(queue) > 0 {
@@ -127,50 +169,28 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 			continue
 		}
 
-		for _, child := range node.Nodes {
-			// Check if the child is nil
-			if child == nil {
+		for _, node := range node.Nodes {
+			// Check if the node is nil or the node is the output path
+			if node == nil || node.Root.Path == sc.Output {
 				continue
 			}
 
-			// Check if the child is a directory or a file, if it is a directory, add it to the queue and continue
-			if child.Nodes != nil {
-				queue = append(queue, child)
+			// Check if the node is a directory or a file, if it is a directory, add it to the queue and continue
+			if node.Nodes != nil {
+				queue = append(queue, node)
 				continue
 			}
 
-			// Check if the child is the output path
-			if child.Root.Path == sc.Output {
-				continue
+			// Add the file path to the queue channel
+			queueChan <- queueChanData{
+				name: node.Root.Name,
+				path: node.Root.Path,
 			}
-
-			name := child.Root.Name
-			data, err := GetFileContent(child.Root.Path)
-			if err != nil {
-				return err
-			}
-
-			// Check if the file content is empty
-			if len(data) == 0 {
-				continue
-			}
-
-			// Get the relative path of the file
-			relPath, err := filepath.Rel(sc.BasePath, child.Root.Path)
-			if err != nil {
-				return err
-			}
-
-			data = append([]byte(fmt.Sprintf("Name: %s\nPath: %s\n```\n", name, relPath)), data...)
-			data = append(data, []byte("\n```\n\n")...)
-
-			// Add the file content to the data channel
-			dataChan <- data
 		}
 	}
 
-	// Close the data channel after all data has been sent
-	close(dataChan)
+	// Close the queue channel
+	close(queueChan)
 
 	// Wait for the goroutine to finish
 	<-done
