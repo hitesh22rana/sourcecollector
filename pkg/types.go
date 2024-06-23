@@ -39,9 +39,3 @@ type SourceNode struct {
 	// Path of the source code node
 	Path string
 }
-
-// queueChanData is a struct that holds the name and path of the source code node
-type queueChanData struct {
-	name string
-	path string
-}

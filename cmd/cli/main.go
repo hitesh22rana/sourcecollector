@@ -17,8 +17,9 @@ Perfect for feeding your files to AI tools without any fuss.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		input, _ := cmd.Flags().GetString("input")
 		output, _ := cmd.Flags().GetString("output")
+		fast, _ := cmd.Flags().GetBool("fast")
 
-		sc, err := sourcecollector.NewSourceCollector(input, output)
+		sc, err := sourcecollector.NewSourceCollector(input, output, fast)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -46,6 +47,7 @@ Perfect for feeding your files to AI tools without any fuss.`,
 func init() {
 	rootCmd.Flags().StringP("input", "i", "", "Input directory path")
 	rootCmd.Flags().StringP("output", "o", "output.txt", "Output file path")
+	rootCmd.Flags().Bool("fast", false, "Faster result but may result in unordered data, default(false)")
 	rootCmd.MarkFlagRequired("input")
 }
 

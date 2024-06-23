@@ -10,7 +10,7 @@ import (
 )
 
 // NewSourceCollector creates a new SourceCollector
-func NewSourceCollector(input string, output string) (*SourceCollector, error) {
+func NewSourceCollector(input string, output string, fast bool) (*SourceCollector, error) {
 	// Validate the input and output paths
 	if !IsValidPath(input) {
 		return nil, fmt.Errorf("input path is invalid")
@@ -43,12 +43,20 @@ func NewSourceCollector(input string, output string) (*SourceCollector, error) {
 		validator = validators.NewDefaultValidator()
 	}
 
+	// If fast is true, then set maxConcurrency to max cpu cores available, else 1
+	var maxConcurrency int
+	if !fast {
+		maxConcurrency = 1
+	} else {
+		maxConcurrency = runtime.NumCPU()
+	}
+
 	return &SourceCollector{
 		Input:          input,
 		Output:         output,
 		BasePath:       filepath.Dir(input),
 		Validator:      validator,
-		MaxConcurrency: runtime.NumCPU(),
+		MaxConcurrency: maxConcurrency,
 	}, nil
 }
 
@@ -108,30 +116,49 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 
 	// Save the source code files, pick the data from the data channel and save it to the output file
 	go func(dataChan chan []byte) {
-		for data := range dataChan {
-			if _, err := file.Write(data); err != nil {
-				fmt.Println("failed to write output file", err)
-			}
+		// Wait channel for the goroutine to finish of size equal to the sc.MaxConcurrency if order is not required else fallback to 1
+		waitChan := make(chan bool, sc.MaxConcurrency)
+
+		// Make multiple goroutines to write the data concurrently
+		for i := 0; i < sc.MaxConcurrency; i++ {
+			go func(dataChan chan []byte) {
+				for data := range dataChan {
+					if _, err := file.Write(data); err != nil {
+						fmt.Println("failed to write output file", err)
+					}
+				}
+
+				// Signal the wait channel
+				waitChan <- true
+			}(dataChan)
 		}
+
+		// Wait for the goroutines to finish
+		for i := 0; i < sc.MaxConcurrency; i++ {
+			<-waitChan
+		}
+
+		// Close the waitChan channel
+		close(waitChan)
 
 		// Signal the done channel
 		done <- true
 	}(dataChan)
 
-	// Make a queue channel to take the source code file path as input and save the source code files to the data channel
-	queueChan := make(chan queueChanData)
+	// Make a queue channel which takes the SourceNode as input and send the source code data to the data channel
+	queueChan := make(chan SourceNode)
 
 	// Process the source code files from the queue channel and send the data to the data channel
-	go func(queueChan chan queueChanData, dataChan chan []byte) {
+	go func(queueChan chan SourceNode, dataChan chan []byte) {
 		// Wait channel for the goroutine to finish of size equal to the sc.MaxConcurrency
-		doneChan := make(chan bool, sc.MaxConcurrency)
+		waitChan := make(chan bool, sc.MaxConcurrency)
 
-		// Make multiple goroutines to read the process the source code files concurrently
+		// Make multiple goroutines to read and process the source code files concurrently
 		for i := 0; i < sc.MaxConcurrency; i++ {
-			go func(queueChan chan queueChanData) {
+			go func(queueChan chan SourceNode) {
 				for queueData := range queueChan {
-					name := queueData.name
-					path := queueData.path
+					name := queueData.Name
+					path := queueData.Path
 
 					data, err := GetFileContent(path)
 					if err != nil {
@@ -149,14 +176,17 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 				}
 
 				// Signal the wait channel
-				doneChan <- true
+				waitChan <- true
 			}(queueChan)
 		}
 
 		// Wait for the goroutines to finish
 		for i := 0; i < sc.MaxConcurrency; i++ {
-			<-doneChan
+			<-waitChan
 		}
+
+		// Close the waitChan channel
+		close(waitChan)
 
 		// Close the data channel
 		close(dataChan)
@@ -185,9 +215,9 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 			}
 
 			// Add the file path to the queue channel
-			queueChan <- queueChanData{
-				name: node.Root.Name,
-				path: node.Root.Path,
+			queueChan <- SourceNode{
+				Name: node.Root.Name,
+				Path: node.Root.Path,
 			}
 		}
 	}
