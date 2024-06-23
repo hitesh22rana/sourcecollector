@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
 
 	"github.com/hitesh22rana/sourcecollector/pkg/validators"
 )
@@ -122,16 +121,14 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 	// Make a queue channel to take the source code file path as input and save the source code files to the data channel
 	queueChan := make(chan queueChanData)
 
-	// Pick the source code file path from the queue channel and save the source code files to the data channel, make multiple goroutines to read the source code files concurrently max upto the number of CPUs available
+	// Process the source code files from the queue channel and send the data to the data channel
 	go func(queueChan chan queueChanData, dataChan chan []byte) {
-		// Waitgroup to wait for the goroutines to finish
-		var wg sync.WaitGroup
+		// Wait channel for the goroutine to finish of size equal to the sc.MaxConcurrency
+		doneChan := make(chan bool, sc.MaxConcurrency)
 
 		// Make multiple goroutines to read the process the source code files concurrently
 		for i := 0; i < sc.MaxConcurrency; i++ {
-			wg.Add(1)
 			go func(queueChan chan queueChanData) {
-				defer wg.Done()
 				for queueData := range queueChan {
 					name := queueData.name
 					path := queueData.path
@@ -139,6 +136,7 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 					data, err := GetFileContent(path)
 					if err != nil {
 						fmt.Println("failed to get file content", err)
+						os.Exit(1)
 					}
 
 					// Get the relative path of the file
@@ -149,11 +147,16 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 					// Add the file content to the data channel
 					dataChan <- data
 				}
+
+				// Signal the wait channel
+				doneChan <- true
 			}(queueChan)
 		}
 
 		// Wait for the goroutines to finish
-		wg.Wait()
+		for i := 0; i < sc.MaxConcurrency; i++ {
+			<-doneChan
+		}
 
 		// Close the data channel
 		close(dataChan)
