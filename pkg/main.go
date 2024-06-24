@@ -44,11 +44,9 @@ func NewSourceCollector(input string, output string, fast bool) (*SourceCollecto
 	}
 
 	// If fast is true, then set maxConcurrency to max cpu cores available, else 1
-	var maxConcurrency int
-	if !fast {
-		maxConcurrency = 1
-	} else {
-		maxConcurrency = runtime.NumCPU()
+	var maxConcurrency int = 1
+	if fast {
+		maxConcurrency = max(runtime.NumCPU(), maxConcurrency)
 	}
 
 	return &SourceCollector{
