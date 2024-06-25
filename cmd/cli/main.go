@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	sourcecollector "github.com/hitesh22rana/sourcecollector/pkg"
 
@@ -15,6 +16,8 @@ var rootCmd = &cobra.Command{
 	Long: `A simple tool to consolidate multiple files into a single .txt file.
 Perfect for feeding your files to AI tools without any fuss.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		startTime := time.Now()
+
 		input, _ := cmd.Flags().GetString("input")
 		output, _ := cmd.Flags().GetString("output")
 		fast, _ := cmd.Flags().GetBool("fast")
@@ -41,6 +44,8 @@ Perfect for feeding your files to AI tools without any fuss.`,
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		fmt.Printf("\n┌───────────────────────────────┐\n│ 🕒 Collection Time: %-10s│\n└───────────────────────────────┘\n", time.Since(startTime).Round(time.Millisecond))
 	},
 }
 
