@@ -12,17 +12,17 @@ import (
 // NewSourceCollector creates a new SourceCollector
 func NewSourceCollector(input string, output string, fast bool) (*SourceCollector, error) {
 	// Validate the input and output paths
-	if !IsValidPath(input) {
+	if !isValidPath(input) {
 		return nil, fmt.Errorf("input path is invalid")
 	}
 
 	// Validate if input file is a directory or not
-	if !IsDirectory(input) {
+	if !isDirectory(input) {
 		return nil, fmt.Errorf("input path is not a directory")
 	}
 
 	// Validate if output file is a directory or don't have .txt extension
-	if !IsValidPath(filepath.Dir(output)) || filepath.Ext(output) != ".txt" {
+	if !isValidPath(filepath.Dir(output)) || filepath.Ext(output) != ".txt" {
 		return nil, fmt.Errorf("output path is invalid")
 	}
 
@@ -85,8 +85,8 @@ func (sc *SourceCollector) GenerateSourceTreeStructure(sourceTree *SourceTree) (
 	return sourceTreeStructure, nil
 }
 
-// Save saves the source tree to the output path
-func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure string) error {
+// SaveSourceCode saves the source tree to the output path
+func (sc *SourceCollector) SaveSourceCode(sourceTree *SourceTree, sourceTreeStructure string) error {
 	// Check if the source tree is nil
 	if sourceTree == nil {
 		return fmt.Errorf("source tree is nil, failed to save the source tree to the output file")
@@ -158,7 +158,7 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 					name := queueData.Name
 					path := queueData.Path
 
-					data, err := GetFileContent(path)
+					data, err := getFileContent(path)
 					if err != nil {
 						fmt.Println("failed to get file content", err)
 						os.Exit(1)

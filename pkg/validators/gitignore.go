@@ -8,11 +8,8 @@ import (
 
 // GitIgnoreBasedValidator is a struct that implements the Validator interface
 type GitIgnoreBasedValidator struct {
-	// path is the path of the directory
-	path string
-
-	// gitIgnore is a set of .gitignore files
-	gitIgnore *ignore.GitIgnore
+	// GitIgnore is used to check if the file is ignored by .gitignore
+	GitIgnore *ignore.GitIgnore
 }
 
 // NewGitIgnoreBasedValidator creates a new GitIgnoreBasedValidator
@@ -23,8 +20,7 @@ func NewGitIgnoreBasedValidator(path string) (*GitIgnoreBasedValidator, error) {
 	}
 
 	return &GitIgnoreBasedValidator{
-		path:      path,
-		gitIgnore: gitIgnore,
+		GitIgnore: gitIgnore,
 	}, nil
 }
 
@@ -36,7 +32,7 @@ func (v *GitIgnoreBasedValidator) IsIgnored(path string) bool {
 	}
 
 	// Check if the file name or extension is ignored by .gitignore
-	if v.gitIgnore.MatchesPath(path) {
+	if v.GitIgnore.MatchesPath(path) {
 		return true
 	}
 

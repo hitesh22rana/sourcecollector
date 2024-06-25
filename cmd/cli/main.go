@@ -37,7 +37,7 @@ Perfect for feeding your files to AI tools without any fuss.`,
 			os.Exit(1)
 		}
 
-		if err := sc.Save(sourceTree, sourcetreeStructure); err != nil {
+		if err := sc.SaveSourceCode(sourceTree, sourcetreeStructure); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
