@@ -17,6 +17,9 @@ type SourceCollector struct {
 
 	// Validator of the source code
 	Validator validators.Validator
+
+	// Max Concurrency to be used for io operations
+	MaxConcurrency int
 }
 
 // SourceTree is a struct that holds the source code tree structure

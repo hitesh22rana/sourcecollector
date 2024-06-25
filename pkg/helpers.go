@@ -17,7 +17,7 @@ func (sc *SourceCollector) generateSourceTree(path string) *SourceTree {
 	if !fileInfo.IsDir() {
 		return &SourceTree{
 			Root: &SourceNode{
-				Name: ExtractName(path),
+				Name: extractName(path),
 				Path: path,
 			},
 			Nodes: nil,
@@ -27,7 +27,7 @@ func (sc *SourceCollector) generateSourceTree(path string) *SourceTree {
 	// If the path is a directory, create a source tree
 	var sourceTree SourceTree = SourceTree{
 		Root: &SourceNode{
-			Name: ExtractName(path),
+			Name: extractName(path),
 			Path: path,
 		},
 		Nodes: []*SourceTree{},

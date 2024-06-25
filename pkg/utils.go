@@ -5,14 +5,14 @@ import (
 	"path/filepath"
 )
 
-// IsValidPath checks if the path is valid or not
-func IsValidPath(path string) bool {
+// isValidPath checks if the path is valid or not
+func isValidPath(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
-// IsDirectory checks if the path is a directory or not
-func IsDirectory(path string) bool {
+// isDirectory checks if the path is a directory or not
+func isDirectory(path string) bool {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		return false
@@ -21,12 +21,12 @@ func IsDirectory(path string) bool {
 	return fileInfo.IsDir()
 }
 
-// ExtractName extracts the name from the path
-func ExtractName(path string) string {
+// extractName extracts the name from the path
+func extractName(path string) string {
 	return filepath.Base(path)
 }
 
-// GetFileContent returns the file content
-func GetFileContent(path string) ([]byte, error) {
+// getFileContent returns the file content
+func getFileContent(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }

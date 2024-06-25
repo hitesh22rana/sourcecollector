@@ -4,24 +4,25 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/hitesh22rana/sourcecollector/pkg/validators"
 )
 
 // NewSourceCollector creates a new SourceCollector
-func NewSourceCollector(input string, output string) (*SourceCollector, error) {
+func NewSourceCollector(input string, output string, fast bool) (*SourceCollector, error) {
 	// Validate the input and output paths
-	if !IsValidPath(input) {
+	if !isValidPath(input) {
 		return nil, fmt.Errorf("input path is invalid")
 	}
 
 	// Validate if input file is a directory or not
-	if !IsDirectory(input) {
+	if !isDirectory(input) {
 		return nil, fmt.Errorf("input path is not a directory")
 	}
 
 	// Validate if output file is a directory or don't have .txt extension
-	if !IsValidPath(filepath.Dir(output)) || filepath.Ext(output) != ".txt" {
+	if !isValidPath(filepath.Dir(output)) || filepath.Ext(output) != ".txt" {
 		return nil, fmt.Errorf("output path is invalid")
 	}
 
@@ -42,11 +43,18 @@ func NewSourceCollector(input string, output string) (*SourceCollector, error) {
 		validator = validators.NewDefaultValidator()
 	}
 
+	// If fast is true, then set maxConcurrency to max cpu cores available, else 1
+	var maxConcurrency int = 1
+	if fast {
+		maxConcurrency = max(runtime.NumCPU(), maxConcurrency)
+	}
+
 	return &SourceCollector{
-		Input:     input,
-		Output:    output,
-		BasePath:  filepath.Dir(input),
-		Validator: validator,
+		Input:          input,
+		Output:         output,
+		BasePath:       filepath.Dir(input),
+		Validator:      validator,
+		MaxConcurrency: maxConcurrency,
 	}, nil
 }
 
@@ -77,8 +85,8 @@ func (sc *SourceCollector) GenerateSourceTreeStructure(sourceTree *SourceTree) (
 	return sourceTreeStructure, nil
 }
 
-// Save saves the source tree to the output path
-func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure string) error {
+// SaveSourceCode saves the source tree to the output path
+func (sc *SourceCollector) SaveSourceCode(sourceTree *SourceTree, sourceTreeStructure string) error {
 	// Check if the source tree is nil
 	if sourceTree == nil {
 		return fmt.Errorf("source tree is nil, failed to save the source tree to the output file")
@@ -106,16 +114,81 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 
 	// Save the source code files, pick the data from the data channel and save it to the output file
 	go func(dataChan chan []byte) {
-		// defer wg.Done()
-		for data := range dataChan {
-			if _, err := file.Write(data); err != nil {
-				fmt.Println("failed to write output file", err)
-			}
+		// Wait channel for the goroutine to finish of size equal to the sc.MaxConcurrency if order is not required else fallback to 1
+		waitChan := make(chan bool, sc.MaxConcurrency)
+
+		// Make multiple goroutines to write the data concurrently
+		for i := 0; i < sc.MaxConcurrency; i++ {
+			go func(dataChan chan []byte) {
+				for data := range dataChan {
+					if _, err := file.Write(data); err != nil {
+						fmt.Println("failed to write output file", err)
+					}
+				}
+
+				// Signal the wait channel
+				waitChan <- true
+			}(dataChan)
 		}
+
+		// Wait for the goroutines to finish
+		for i := 0; i < sc.MaxConcurrency; i++ {
+			<-waitChan
+		}
+
+		// Close the waitChan channel
+		close(waitChan)
 
 		// Signal the done channel
 		done <- true
 	}(dataChan)
+
+	// Make a queue channel which takes the SourceNode as input and send the source code data to the data channel
+	queueChan := make(chan SourceNode)
+
+	// Process the source code files from the queue channel and send the data to the data channel
+	go func(queueChan chan SourceNode, dataChan chan []byte) {
+		// Wait channel for the goroutine to finish of size equal to the sc.MaxConcurrency
+		waitChan := make(chan bool, sc.MaxConcurrency)
+
+		// Make multiple goroutines to read and process the source code files concurrently
+		for i := 0; i < sc.MaxConcurrency; i++ {
+			go func(queueChan chan SourceNode) {
+				for queueData := range queueChan {
+					name := queueData.Name
+					path := queueData.Path
+
+					data, err := getFileContent(path)
+					if err != nil {
+						fmt.Println("failed to get file content", err)
+						os.Exit(1)
+					}
+
+					// Get the relative path of the file
+					relPath, _ := filepath.Rel(sc.BasePath, path)
+					data = append([]byte(fmt.Sprintf("Name: %s\nPath: %s\n```\n", name, relPath)), data...)
+					data = append(data, []byte("\n```\n\n")...)
+
+					// Add the file content to the data channel
+					dataChan <- data
+				}
+
+				// Signal the wait channel
+				waitChan <- true
+			}(queueChan)
+		}
+
+		// Wait for the goroutines to finish
+		for i := 0; i < sc.MaxConcurrency; i++ {
+			<-waitChan
+		}
+
+		// Close the waitChan channel
+		close(waitChan)
+
+		// Close the data channel
+		close(dataChan)
+	}(queueChan, dataChan)
 
 	queue := []*SourceTree{sourceTree}
 	for len(queue) > 0 {
@@ -127,50 +200,28 @@ func (sc *SourceCollector) Save(sourceTree *SourceTree, sourceTreeStructure stri
 			continue
 		}
 
-		for _, child := range node.Nodes {
-			// Check if the child is nil
-			if child == nil {
+		for _, node := range node.Nodes {
+			// Check if the node is nil or the node is the output path
+			if node == nil || node.Root.Path == sc.Output {
 				continue
 			}
 
-			// Check if the child is a directory or a file, if it is a directory, add it to the queue and continue
-			if child.Nodes != nil {
-				queue = append(queue, child)
+			// Check if the node is a directory or a file, if it is a directory, add it to the queue and continue
+			if node.Nodes != nil {
+				queue = append(queue, node)
 				continue
 			}
 
-			// Check if the child is the output path
-			if child.Root.Path == sc.Output {
-				continue
+			// Add the file path to the queue channel
+			queueChan <- SourceNode{
+				Name: node.Root.Name,
+				Path: node.Root.Path,
 			}
-
-			name := child.Root.Name
-			data, err := GetFileContent(child.Root.Path)
-			if err != nil {
-				return err
-			}
-
-			// Check if the file content is empty
-			if len(data) == 0 {
-				continue
-			}
-
-			// Get the relative path of the file
-			relPath, err := filepath.Rel(sc.BasePath, child.Root.Path)
-			if err != nil {
-				return err
-			}
-
-			data = append([]byte(fmt.Sprintf("Name: %s\nPath: %s\n```\n", name, relPath)), data...)
-			data = append(data, []byte("\n```\n\n")...)
-
-			// Add the file content to the data channel
-			dataChan <- data
 		}
 	}
 
-	// Close the data channel after all data has been sent
-	close(dataChan)
+	// Close the queue channel
+	close(queueChan)
 
 	// Wait for the goroutine to finish
 	<-done

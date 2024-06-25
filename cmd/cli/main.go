@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	sourcecollector "github.com/hitesh22rana/sourcecollector/pkg"
 
@@ -15,10 +16,13 @@ var rootCmd = &cobra.Command{
 	Long: `A simple tool to consolidate multiple files into a single .txt file.
 Perfect for feeding your files to AI tools without any fuss.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		startTime := time.Now()
+
 		input, _ := cmd.Flags().GetString("input")
 		output, _ := cmd.Flags().GetString("output")
+		fast, _ := cmd.Flags().GetBool("fast")
 
-		sc, err := sourcecollector.NewSourceCollector(input, output)
+		sc, err := sourcecollector.NewSourceCollector(input, output, fast)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -36,16 +40,19 @@ Perfect for feeding your files to AI tools without any fuss.`,
 			os.Exit(1)
 		}
 
-		if err := sc.Save(sourceTree, sourcetreeStructure); err != nil {
+		if err := sc.SaveSourceCode(sourceTree, sourcetreeStructure); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		fmt.Printf("\n┌───────────────────────────────┐\n│ 🕒 Collection Time: %-10s│\n└───────────────────────────────┘\n", time.Since(startTime).Round(time.Millisecond))
 	},
 }
 
 func init() {
 	rootCmd.Flags().StringP("input", "i", "", "Input directory path")
 	rootCmd.Flags().StringP("output", "o", "output.txt", "Output file path")
+	rootCmd.Flags().Bool("fast", false, "Faster result but may result in unordered data, default(false)")
 	rootCmd.MarkFlagRequired("input")
 }
 
