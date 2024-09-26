@@ -1,0 +1,10 @@
+-   [x] Validate if output file have .txt format or not
+-   [x] Ignore media, images, binary and execuatbale files
+-   [x] Add source tree in output.txt file
+-   [x] Pick .gitignore file from folder for ignoring files
+-   [x] Gitignore parser to ignore unwanted files and folders
+-   [x] Improve write file performance
+-   [x] Faster algorithm for sourcecollector
+-   [x] Faster way to write to a file using buffer of a fixed length for bulk write
+-   [x] Beautify CLI for better understanding
+-   [ ] Better algorithm for searching
