@@ -25,8 +25,3 @@ func isDirectory(path string) bool {
 func extractName(path string) string {
 	return filepath.Base(path)
 }
-
-// getFileContent returns the file content
-func getFileContent(path string) ([]byte, error) {
-	return os.ReadFile(path)
-}

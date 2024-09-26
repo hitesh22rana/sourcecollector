@@ -1,10 +1,12 @@
 package pkg
 
 import (
-	"fmt"
+	"bufio"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/hitesh22rana/sourcecollector/pkg/validators"
 )
@@ -13,23 +15,23 @@ import (
 func NewSourceCollector(input string, output string, fast bool) (*SourceCollector, error) {
 	// Validate the input and output paths
 	if !isValidPath(input) {
-		return nil, fmt.Errorf("input path is invalid")
+		return nil, ErrInvalidInputPath
 	}
 
 	// Validate if input file is a directory or not
 	if !isDirectory(input) {
-		return nil, fmt.Errorf("input path is not a directory")
+		return nil, ErrInavlidInputDirectory
 	}
 
 	// Validate if output file is a directory or don't have .txt extension
 	if !isValidPath(filepath.Dir(output)) || filepath.Ext(output) != ".txt" {
-		return nil, fmt.Errorf("output path is invalid")
+		return nil, ErrInvalidOutputPath
 	}
 
 	// Make the output file if it does not exist
 	outputFile, err := os.Create(output)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create output file")
+		return nil, ErrFailedToCreateFile
 	}
 	defer outputFile.Close()
 
@@ -39,7 +41,6 @@ func NewSourceCollector(input string, output string, fast bool) (*SourceCollecto
 
 	// If the gitIgnoreBasedValidator is nil, then make a new default validator
 	if err != nil {
-		fmt.Println("No .gitignore file found, proceeding with default settings.")
 		validator = validators.NewDefaultValidator()
 	}
 
@@ -63,7 +64,7 @@ func (sc *SourceCollector) GenerateSourceTree() (*SourceTree, error) {
 	// Generate the source tree
 	sourceTree := sc.generateSourceTree(sc.Input)
 	if sourceTree == nil {
-		return nil, fmt.Errorf("no files found")
+		return nil, ErrSourceTreeGeneration
 	}
 
 	return sourceTree, nil
@@ -73,13 +74,13 @@ func (sc *SourceCollector) GenerateSourceTree() (*SourceTree, error) {
 func (sc *SourceCollector) GenerateSourceTreeStructure(sourceTree *SourceTree) (string, error) {
 	// Check if the sourceTree is nil
 	if sourceTree == nil {
-		return "", fmt.Errorf("failed to generate source tree structure")
+		return "", ErrSourceTreeStructure
 	}
 
 	// Generate the tree structure
 	sourceTreeStructure := sc.generateSourceTreeStructure(sourceTree, 0)
 	if sourceTreeStructure == "" {
-		return "", fmt.Errorf("failed to generate source tree structure")
+		return "", ErrSourceTreeStructure
 	}
 
 	return sourceTreeStructure, nil
@@ -89,40 +90,40 @@ func (sc *SourceCollector) GenerateSourceTreeStructure(sourceTree *SourceTree) (
 func (sc *SourceCollector) SaveSourceCode(sourceTree *SourceTree, sourceTreeStructure string) error {
 	// Check if the source tree is nil
 	if sourceTree == nil {
-		return fmt.Errorf("source tree is nil, failed to save the source tree to the output file")
+		return ErrSaveSourceTree
 	}
 
 	// Open the output file in append mode
 	file, err := os.OpenFile(sc.Output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to open output file")
+		return ErrOpenOutputFile
 	}
 	defer file.Close()
 
 	// If sourceTreeStructure is not provided, then skip saving the source tree structure else, add the source code files tree structure to the output file and save it
 	if sourceTreeStructure != "" {
-		if _, err := file.Write([]byte(fmt.Sprintf("Source code files structure\n\n%s\n\n", sourceTreeStructure))); err != nil {
-			return fmt.Errorf("failed to write output file")
+		if _, err := file.Write([]byte("Source code files structure\n\n" + sourceTreeStructure + "\n\n")); err != nil {
+			return ErrWriteOutputFile
 		}
 	}
 
 	// Make a data channel to save the source code files
-	dataChan := make(chan []byte)
+	dataChan := make(chan string)
 
 	// Done channel to wait for the goroutine to finish
 	done := make(chan bool)
 
 	// Save the source code files, pick the data from the data channel and save it to the output file
-	go func(dataChan chan []byte) {
+	go func(dataChan chan string) {
 		// Wait channel for the goroutine to finish of size equal to the sc.MaxConcurrency if order is not required else fallback to 1
 		waitChan := make(chan bool, sc.MaxConcurrency)
 
 		// Make multiple goroutines to write the data concurrently
 		for i := 0; i < sc.MaxConcurrency; i++ {
-			go func(dataChan chan []byte) {
+			go func(dataChan chan string) {
 				for data := range dataChan {
-					if _, err := file.Write(data); err != nil {
-						fmt.Println("failed to write output file", err)
+					if _, err := file.WriteString(data); err != nil {
+						log.Println("failed to write output file", err)
 					}
 				}
 
@@ -147,7 +148,7 @@ func (sc *SourceCollector) SaveSourceCode(sourceTree *SourceTree, sourceTreeStru
 	queueChan := make(chan SourceNode)
 
 	// Process the source code files from the queue channel and send the data to the data channel
-	go func(queueChan chan SourceNode, dataChan chan []byte) {
+	go func(queueChan chan SourceNode, dataChan chan string) {
 		// Wait channel for the goroutine to finish of size equal to the sc.MaxConcurrency
 		waitChan := make(chan bool, sc.MaxConcurrency)
 
@@ -158,19 +159,33 @@ func (sc *SourceCollector) SaveSourceCode(sourceTree *SourceTree, sourceTreeStru
 					name := queueData.Name
 					path := queueData.Path
 
-					data, err := getFileContent(path)
+					// Use bufio for efficient file reading
+					file, err := os.Open(path)
 					if err != nil {
-						fmt.Println("failed to get file content", err)
-						os.Exit(1)
+						log.Fatalln("failed to open file", err)
 					}
 
 					// Get the relative path of the file
 					relPath, _ := filepath.Rel(sc.BasePath, path)
-					data = append([]byte(fmt.Sprintf("Name: %s\nPath: %s\n```\n", name, relPath)), data...)
-					data = append(data, []byte("\n```\n\n")...)
+
+					var sb strings.Builder
+
+					sb.WriteString("Name: " + name + "\nPath: " + relPath + "\n```\n")
+					scanner := bufio.NewScanner(file)
+					for scanner.Scan() {
+						sb.Write(scanner.Bytes())
+						sb.WriteString("\n")
+					}
+					file.Close()
+
+					if err := scanner.Err(); err != nil {
+						log.Fatalln("failed to read file", err)
+					}
+
+					sb.WriteString("\n```\n\n")
 
 					// Add the file content to the data channel
-					dataChan <- data
+					dataChan <- sb.String()
 				}
 
 				// Signal the wait channel

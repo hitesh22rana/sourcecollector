@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -24,25 +25,21 @@ Perfect for feeding your files to AI tools without any fuss.`,
 
 		sc, err := sourcecollector.NewSourceCollector(input, output, fast)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			log.Fatal(err)
 		}
 
 		sourceTree, err := sc.GenerateSourceTree()
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			log.Fatal(err)
 		}
 
 		sourcetreeStructure, err := sc.GenerateSourceTreeStructure(sourceTree)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			log.Fatal(err)
 		}
 
 		if err := sc.SaveSourceCode(sourceTree, sourcetreeStructure); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			log.Fatal(err)
 		}
 
 		fmt.Printf("\n┌───────────────────────────────┐\n│ 🕒 Collection Time: %-10s│\n└───────────────────────────────┘\n", time.Since(startTime).Round(time.Millisecond))

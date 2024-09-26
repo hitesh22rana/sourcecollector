@@ -1,4 +1,4 @@
-.PHONY: format-backend vet-backend run
+.PHONY: format vet build run
 
 format:
 	@go fmt ./...
