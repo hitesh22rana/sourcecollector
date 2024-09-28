@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"fmt"
@@ -12,8 +12,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "sourcecollector",
-	Short: "A simple tool to consolidate multiple files into a single .txt file",
+	Use:     "sourcecollector",
+	Version: "0.1.4",
+	Short:   "A simple tool to consolidate multiple files into a single .txt file",
 	Long: `A simple tool to consolidate multiple files into a single .txt file.
 Perfect for feeding your files to AI tools without any fuss.`,
 	Run: func(cmd *cobra.Command, args []string) {

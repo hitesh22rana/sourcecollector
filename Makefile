@@ -7,7 +7,7 @@ vet:
 	@go vet ./...
 
 build: format vet
-	@go build -o bin/sourcecollector main.go
+	@go build -o bin/sourcecollector cmd/main.go
 
 run: build
 	@./bin/sourcecollector --input=$(input) --output=$(output) --fast=$(fast)
