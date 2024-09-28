@@ -13,7 +13,7 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:     "sourcecollector",
-	Version: "0.1.4",
+	Version: "0.1.5",
 	Short:   "A simple tool to consolidate multiple files into a single .txt file",
 	Long: `A simple tool to consolidate multiple files into a single .txt file.
 Perfect for feeding your files to AI tools without any fuss.`,
