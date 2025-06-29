@@ -1,0 +1,932 @@
+name: chronoverse
+
+x-limits:
+  # Database requires more cpu and memory
+  database-limits: &database-limits
+      deploy:
+        resources:
+          limits:
+            cpus: '1'     # 1 CPU
+            memory: 1G    # 1 GB
+          reservations:
+            cpus: '0.5'   # 500 m CPU
+            memory: 512M  # 512 MB
+
+  # Services require less cpu and memory
+  services-limit: &services-limit
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'   # 250 m CPU
+          memory: 256M   # 256 MB
+        reservations:
+          cpus: '0.1'    # 100 m CPU
+          memory: 128M   # 128 MB
+
+  # Low resources workers require a bit more cpu and memory
+  # but still less than the database
+  low-resources-workers-limit: &low-resources-workers-limit
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'    # 500 m CPU
+          memory: 2G     # 2 GB
+        reservations:
+          cpus: '0.25'   # 250 m CPU
+          memory: 1G     # 1 GB
+
+  # High resources workers require a bit more cpu and memory
+  high-resources-workers-limit: &high-resources-workers-limit
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '2'     # 2 CPU
+          memory: 4G    # 4 GB
+        reservations:
+          cpus: '1'     # 1 CPU
+          memory: 2G    # 2 GB
+
+services:
+  postgres:
+    <<: *database-limits
+    image: postgres:alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chronoverse
+    restart: on-failure
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -q -d chronoverse -U postgres']
+      timeout: 10s
+      interval: 5s
+      retries: 10
+    networks:
+      - chronoverse
+
+  clickhouse:
+    <<: *database-limits
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    environment:
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    restart: on-failure
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--host=localhost", "--query=SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - chronoverse
+
+  redis:
+    <<: *database-limits
+    image: redis:alpine
+    container_name: redis
+    restart: on-failure
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ping | grep PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - chronoverse
+
+  kafka:
+    <<: *database-limits
+    image: confluentinc/cp-kafka:latest
+    hostname: kafka
+    container_name: kafka
+    restart: on-failure
+    environment:
+      KAFKA_KRAFT_MODE: "true"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CLUSTER_LINK_METADATA_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_CLUSTER_LINK_METADATA_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_DURABILITY_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_TIER_METADATA_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 2
+      CLUSTER_ID: chronoverse
+    volumes:
+      - kafka:/var/lib/kafka/data
+      - kafka-secrets:/etc/kafka/secrets
+    networks:
+      - chronoverse
+
+  lgtm:
+    image: grafana/otel-lgtm
+    container_name: lgtm
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: true
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    restart: on-failure
+    volumes:
+      - lgtm:/data
+      - otel-lgtm:/otel-lgtm
+    ports:
+      - '3000:3000'
+    networks:
+      - chronoverse
+
+  docker-proxy:
+    <<: *services-limit
+    image: tecnativa/docker-socket-proxy
+    container_name: docker-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Image-related permissions
+      IMAGES: 1
+      IMAGE_CREATE: 1
+      
+      # Container-related permissions
+      CONTAINERS: 1         # Basic container operations
+      CONTAINER_CREATE: 1   # Needed for ContainerCreate
+      CONTAINER_START: 1    # Needed for ContainerStart
+      CONTAINER_LOGS: 1     # Needed for streaming logs
+      CONTAINER_ATTACH: 1   # Might be needed for log streaming
+      CONTAINER_WAIT: 1     # Needed for waiting on container exit
+      CONTAINER_DELETE: 1   # Needed for container cleanup
+      CONTAINER_STOP: 1     # Might be needed to stop containers
+      
+      # General permissions
+      POST: 1               # Allow POST requests
+      AUTH: 1               # Allow registry authentication
+      
+      # Network permissions
+      NETWORKS: 0
+      VOLUMES: 0
+    networks:
+      - chronoverse
+
+  init-certs:
+    image: alpine:latest
+    container_name: init-certs
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      if [ -f /certs/auth.ed ] && [ -f /certs/auth.ed.pub ]; then
+        echo "✅ Certificates already exist, skipping generation"
+      else
+        echo "🔐 Generating new certificates..."
+        apk update
+        apk add --no-cache openssl
+        openssl genpkey -algorithm ED25519 -outform pem -out /certs/auth.ed
+        openssl pkey -in /certs/auth.ed -pubout -out /certs/auth.ed.pub
+        echo "✅ Certificates generated successfully"
+      fi
+
+      echo "Setting certificate permissions..."
+      chmod 444 /certs/auth.ed.pub
+      chmod 444 /certs/auth.ed
+      echo "🎉 Certificate permissions set successfully"
+      '
+    restart: "no"
+    networks:
+      - chronoverse
+
+  init-service-certs:
+    image: alpine:latest
+    container_name: init-service-certs
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+        echo "🔐 Initializing TLS certificates for services..."
+
+        apk update && apk add --no-cache openssl
+
+        mkdir -p /certs/ca
+
+        SERVICES="users-service workflows-service jobs-service notifications-service"
+        for svc in $$SERVICES; do
+          mkdir -p /certs/$$svc
+        done
+
+        if [ ! -f /certs/ca/ca.key ]; then
+          echo "🛡️ Generating CA certificate..."
+          openssl genrsa -out /certs/ca/ca.key 4096
+          openssl req -x509 -new -nodes -key /certs/ca/ca.key -sha256 \
+            -days 365 -out /certs/ca/ca.crt \
+            -subj "/CN=Chronoverse CA"
+          echo "✅ CA certificate created"
+        fi
+
+        for svc in $$SERVICES; do
+          CERT_PATH="/certs/$$svc"
+          echo "🔧 Generating certificate for $$svc..."
+          openssl genrsa -out "$$CERT_PATH/$$svc.key" 4096
+          openssl req -new -key "$$CERT_PATH/$$svc.key" \
+            -out "$$CERT_PATH/$$svc.csr" \
+            -subj "/CN=Chronoverse $$svc"
+
+          echo "subjectAltName=IP:0.0.0.0,IP:127.0.0.1,DNS:$$svc" > "$$CERT_PATH/$$svc-ext.cnf"
+
+          openssl x509 -req -in "$$CERT_PATH/$$svc.csr" \
+            -CA /certs/ca/ca.crt -CAkey /certs/ca/ca.key \
+            -CAcreateserial -out "$$CERT_PATH/$$svc.crt" -days 365 \
+            -extfile "$$CERT_PATH/$$svc-ext.cnf"
+
+          rm "$$CERT_PATH/$$svc.csr" "$$CERT_PATH/$$svc-ext.cnf"
+
+          echo "✅ Certificate created for $$svc"
+        done
+
+        echo "🔐 Generating client certificate for mTLS..."
+        mkdir -p /certs/clients
+        openssl genrsa -out /certs/clients/client.key 4096
+        openssl req -new -key /certs/clients/client.key \
+          -out /certs/clients/client.csr \
+          -subj "/CN=Chronoverse Client"
+
+        echo "subjectAltName=DNS:client" > /certs/clients/client-ext.cnf
+
+        openssl x509 -req -in /certs/clients/client.csr \
+          -CA /certs/ca/ca.crt -CAkey /certs/ca/ca.key \
+          -CAcreateserial -out /certs/clients/client.crt -days 365 \
+          -extfile /certs/clients/client-ext.cnf
+
+        rm /certs/clients/client.csr /certs/clients/client-ext.cnf
+        rm /certs/ca/ca.srl
+        echo "✅ Client certificate created"
+
+        echo "Setting permissions for all certificates..."
+
+        chmod 444 /certs/ca/ca.crt
+        chmod 444 /certs/ca/ca.key
+
+        for svc in $$SERVICES; do
+          chmod 444 /certs/$$svc/$$svc.crt
+          chmod 444 /certs/$$svc/$$svc.key
+        done
+
+        chmod 444 /certs/clients/client.crt
+        chmod 444 /certs/clients/client.key
+
+        echo "✅ Permissions set successfully"
+        echo "🎉 TLS certificates initialized successfully!"
+      '
+    restart: "no"
+    networks:
+      - chronoverse
+
+  init-database-migration:
+    <<: *services-limit
+    image: ghcr.io/hitesh22rana/chronoverse/database-migration:latest
+    container_name: init-database-migration
+    environment:
+      POSTGRES_HOST: postgres
+      CLICKHOUSE_HOSTS: clickhouse:9000
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+    restart: "no"
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+    networks:
+      - chronoverse
+
+  users-service:
+    <<: *services-limit
+    image: ghcr.io/hitesh22rana/chronoverse/users-service:latest
+    container_name: users-service
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      GRPC_PORT: 50051
+      GRPC_REQUEST_TIMEOUT: 500ms
+      GRPC_TLS_ENABLED: true
+      GRPC_TLS_CA_FILE: certs/ca/ca.crt
+      GRPC_TLS_CERT_FILE: certs/users-service/users-service.crt
+      GRPC_TLS_KEY_FILE: certs/users-service/users-service.key
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+    restart: on-failure
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    healthcheck:
+      test: |
+        if [ "$$GRPC_TLS_ENABLED" = "true" ]; then
+          /bin/grpc-health-probe -addr=localhost:50051 -connect-timeout 250ms -rpc-timeout 250ms -tls -tls-ca-cert certs/ca/ca.crt -tls-client-cert certs/users-service/users-service.crt -tls-client-key certs/users-service/users-service.key -tls-server-name=users-service -rpc-header=Audience:grpc_probe -rpc-header=Role:admin
+        else
+          /bin/grpc-health-probe -addr=localhost:50051 -connect-timeout 250ms -rpc-timeout 250ms -service=users-service -rpc-header=Audience:grpc_probe -rpc-header=Role:admin
+        fi
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+      init-database-migration:
+        condition: service_completed_successfully
+    networks:
+      - chronoverse
+
+  workflows-service:
+    <<: *services-limit
+    image: ghcr.io/hitesh22rana/chronoverse/workflows-service:latest
+    container_name: workflows-service
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_PRODUCER_TOPIC: workflows
+      GRPC_PORT: 50052
+      GRPC_REQUEST_TIMEOUT: 500ms
+      GRPC_TLS_ENABLED: true
+      GRPC_TLS_CA_FILE: certs/ca/ca.crt
+      GRPC_TLS_CERT_FILE: certs/workflows-service/workflows-service.crt
+      GRPC_TLS_KEY_FILE: certs/workflows-service/workflows-service.key
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+    restart: on-failure
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    healthcheck:
+      test: |
+        if [ "$$GRPC_TLS_ENABLED" = "true" ]; then
+          /bin/grpc-health-probe -addr=localhost:50052 -connect-timeout 250ms -rpc-timeout 250ms -tls -tls-ca-cert certs/ca/ca.crt -tls-client-cert certs/workflows-service/workflows-service.crt -tls-client-key certs/workflows-service/workflows-service.key -tls-server-name=workflows-service -rpc-header=Audience:grpc_probe -rpc-header=Role:admin
+        else
+          /bin/grpc-health-probe -addr=localhost:50052 -connect-timeout 250ms -rpc-timeout 250ms -service=workflows-service -rpc-header=Audience:grpc_probe -rpc-header=Role:admin
+        fi
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      lgtm:
+        condition: service_started
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+      init-database-migration:
+        condition: service_completed_successfully
+    networks:
+      - chronoverse
+
+  jobs-service:
+    <<: *services-limit
+    image: ghcr.io/hitesh22rana/chronoverse/jobs-service:latest
+    container_name: jobs-service
+    environment:
+      POSTGRES_HOST: postgres
+      CLICKHOUSE_HOSTS: clickhouse:9000
+      GRPC_PORT: 50053
+      GRPC_REQUEST_TIMEOUT: 500ms
+      GRPC_TLS_ENABLED: true
+      GRPC_TLS_CA_FILE: certs/ca/ca.crt
+      GRPC_TLS_CERT_FILE: certs/jobs-service/jobs-service.crt
+      GRPC_TLS_KEY_FILE: certs/jobs-service/jobs-service.key
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+    restart: on-failure
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    healthcheck:
+      test: |
+        if [ "$$GRPC_TLS_ENABLED" = "true" ]; then
+          /bin/grpc-health-probe -addr=localhost:50053 -connect-timeout 250ms -rpc-timeout 250ms -tls -tls-ca-cert certs/ca/ca.crt -tls-client-cert certs/jobs-service/jobs-service.crt -tls-client-key certs/jobs-service/jobs-service.key -tls-server-name=jobs-service -rpc-header=Audience:grpc_probe -rpc-header=Role:admin
+        else
+          /bin/grpc-health-probe -addr=localhost:50053 -connect-timeout 250ms -rpc-timeout 250ms -service=jobs-service -rpc-header=Audience:grpc_probe -rpc-header=Role:admin
+        fi
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      lgtm:
+        condition: service_started
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+      init-database-migration:
+        condition: service_completed_successfully
+    networks:
+      - chronoverse
+
+  notifications-service:
+    <<: *services-limit
+    image: ghcr.io/hitesh22rana/chronoverse/notifications-service:latest
+    container_name: notifications-service
+    environment:
+      POSTGRES_HOST: postgres
+      GRPC_PORT: 50054
+      GRPC_REQUEST_TIMEOUT: 500ms
+      GRPC_TLS_ENABLED: true
+      GRPC_TLS_CA_FILE: certs/ca/ca.crt
+      GRPC_TLS_CERT_FILE: certs/notifications-service/notifications-service.crt
+      GRPC_TLS_KEY_FILE: certs/notifications-service/notifications-service.key
+      CLIENT_TLS_CERT_FILE: certs/clients/client.crt
+      CLIENT_TLS_KEY_FILE: certs/clients/client.key
+      USERS_SERVICE_HOST: users-service
+      USERS_SERVICE_PORT: 50051
+      USERS_SERVICE_TLS_ENABLED: true
+      USERS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+    restart: on-failure
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    healthcheck:
+      test: |
+        if [ "$$GRPC_TLS_ENABLED" = "true" ]; then
+          /bin/grpc-health-probe -addr=localhost:50054 -connect-timeout 250ms -rpc-timeout 250ms -tls -tls-ca-cert certs/ca/ca.crt -tls-client-cert certs/notifications-service/notifications-service.crt -tls-client-key certs/notifications-service/notifications-service.key -tls-server-name=notifications-service -rpc-header=Audience:grpc_probe -rpc-header=Role:admin
+        else
+          /bin/grpc-health-probe -addr=localhost:50054 -connect-timeout 250ms -rpc-timeout 250ms -service=notifications-service -rpc-header=Audience:grpc_probe -rpc-header=Role:admin
+        fi
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+      init-database-migration:
+        condition: service_completed_successfully
+      users-service:
+        condition: service_started
+    networks:
+      - chronoverse
+
+  scheduling-worker:
+    <<: *low-resources-workers-limit
+    image: ghcr.io/hitesh22rana/chronoverse/scheduling-worker:latest
+    environment:
+      POSTGRES_HOST: postgres
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_PRODUCER_TOPIC: jobs
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+    restart: on-failure
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      lgtm:
+        condition: service_started
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+      init-database-migration:
+        condition: service_completed_successfully
+    networks:
+      - chronoverse
+
+  workflow-worker:
+    <<: *low-resources-workers-limit
+    image: ghcr.io/hitesh22rana/chronoverse/workflow-worker:latest
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CONSUME_TOPICS: workflows
+      KAFKA_CONSUMER_GROUP: workflow-worker
+      CLIENT_TLS_CERT_FILE: certs/clients/client.crt
+      CLIENT_TLS_KEY_FILE: certs/clients/client.key
+      WORKFLOWS_SERVICE_HOST: workflows-service
+      WORKFLOWS_SERVICE_PORT: 50052
+      WORKFLOWS_SERVICE_TLS_ENABLED: true
+      WORKFLOWS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      JOBS_SERVICE_HOST: jobs-service
+      JOBS_SERVICE_PORT: 50053
+      JOBS_SERVICE_TLS_ENABLED: true
+      JOBS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      NOTIFICATIONS_SERVICE_HOST: notifications-service
+      NOTIFICATIONS_SERVICE_PORT: 50054
+      NOTIFICATIONS_SERVICE_TLS_ENABLED: true
+      NOTIFICATIONS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+      DOCKER_HOST: tcp://docker-proxy:2375
+    restart: on-failure
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    depends_on:
+      docker-proxy:
+        condition: service_started
+      kafka:
+        condition: service_started
+      lgtm:
+        condition: service_started
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+      init-database-migration:
+        condition: service_completed_successfully
+      workflows-service:
+        condition: service_healthy
+      jobs-service:
+        condition: service_healthy
+      notifications-service:
+        condition: service_healthy
+    networks:
+      - chronoverse
+
+  execution-worker:
+    <<: *high-resources-workers-limit
+    image: ghcr.io/hitesh22rana/chronoverse/execution-worker:latest
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_PRODUCER_TOPIC: job_logs
+      KAFKA_CONSUME_TOPICS: jobs
+      KAFKA_CONSUMER_GROUP: execution-worker
+      CLIENT_TLS_CERT_FILE: certs/clients/client.crt
+      CLIENT_TLS_KEY_FILE: certs/clients/client.key
+      WORKFLOWS_SERVICE_HOST: workflows-service
+      WORKFLOWS_SERVICE_PORT: 50052
+      WORKFLOWS_SERVICE_TLS_ENABLED: true
+      WORKFLOWS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      JOBS_SERVICE_HOST: jobs-service
+      JOBS_SERVICE_PORT: 50053
+      JOBS_SERVICE_TLS_ENABLED: true
+      JOBS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      NOTIFICATIONS_SERVICE_HOST: notifications-service
+      NOTIFICATIONS_SERVICE_PORT: 50054
+      NOTIFICATIONS_SERVICE_TLS_ENABLED: true
+      NOTIFICATIONS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+      DOCKER_HOST: tcp://docker-proxy:2375
+    restart: on-failure
+    volumes:
+      - ./certs:/certs
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    depends_on:
+      docker-proxy:
+        condition: service_started
+      kafka:
+        condition: service_started
+      lgtm:
+        condition: service_started
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+      init-database-migration:
+        condition: service_completed_successfully
+      workflows-service:
+        condition: service_healthy
+      jobs-service:
+        condition: service_healthy
+      notifications-service:
+        condition: service_healthy
+    networks:
+      - chronoverse
+
+  joblogs-processor:
+    <<: *low-resources-workers-limit
+    image: ghcr.io/hitesh22rana/chronoverse/joblogs-processor:latest
+    environment:
+      CLICKHOUSE_HOSTS: clickhouse:9000
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CONSUME_TOPICS: job_logs
+      KAFKA_CONSUMER_GROUP: joblogs-processor
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+    restart: on-failure
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    depends_on:
+      kafka:
+        condition: service_started
+      lgtm:
+        condition: service_started
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+      init-database-migration:
+        condition: service_completed_successfully
+    networks:
+      - chronoverse
+
+  server:
+    <<: *services-limit
+    image: ghcr.io/hitesh22rana/chronoverse/server:latest
+    container_name: server
+    environment:
+      SERVER_HOST: 0.0.0.0
+      SERVER_FRONTEND_URL: http://localhost:80
+      REDIS_HOST: redis
+      CLIENT_TLS_CERT_FILE: certs/clients/client.crt
+      CLIENT_TLS_KEY_FILE: certs/clients/client.key
+      USERS_SERVICE_HOST: users-service
+      USERS_SERVICE_PORT: 50051
+      USERS_SERVICE_TLS_ENABLED: true
+      USERS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      WORKFLOWS_SERVICE_HOST: workflows-service
+      WORKFLOWS_SERVICE_PORT: 50052
+      WORKFLOWS_SERVICE_TLS_ENABLED: true
+      WORKFLOWS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      JOBS_SERVICE_HOST: jobs-service
+      JOBS_SERVICE_PORT: 50053
+      JOBS_SERVICE_TLS_ENABLED: true
+      JOBS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      NOTIFICATIONS_SERVICE_HOST: notifications-service
+      NOTIFICATIONS_SERVICE_PORT: 50054
+      NOTIFICATIONS_SERVICE_TLS_ENABLED: true
+      NOTIFICATIONS_SERVICE_TLS_CA_FILE: certs/ca/ca.crt
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_LOGS_INSECURE: true
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: 500
+      OTEL_BSP_SCHEDULE_DELAY: 500
+      ENV: production
+    restart: on-failure
+    volumes:
+      - ./certs:/certs
+    entrypoint: |
+      sh -c '
+      while [ ! -f /certs/auth.ed ] || [ ! -f /certs/auth.ed.pub ]; do 
+        echo "Waiting for certificates..."
+        sleep 1
+      done
+      exec /bin/service
+      '
+    depends_on:
+      redis:
+        condition: service_healthy
+      init-certs:
+        condition: service_completed_successfully
+      init-service-certs:
+        condition: service_completed_successfully
+      init-database-migration:
+        condition: service_completed_successfully
+      users-service:
+        condition: service_healthy
+      workflows-service:
+        condition: service_healthy
+      jobs-service:
+        condition: service_healthy
+      notifications-service:
+        condition: service_healthy
+    networks:
+      - chronoverse
+
+  dashboard:
+    image: ghcr.io/hitesh22rana/chronoverse/dashboard:latest
+    container_name: dashboard
+    restart: on-failure
+    depends_on:
+      server:
+        condition: service_started
+      scheduling-worker:
+        condition: service_started
+      workflow-worker:
+        condition: service_started
+      execution-worker:
+        condition: service_started
+      joblogs-processor:
+        condition: service_started
+    networks:
+      - chronoverse
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    tmpfs:
+      - /etc/nginx/conf.d
+    entrypoint: |
+      sh -c '
+      cat > /etc/nginx/nginx.conf << "EOF"
+      events {}
+
+      http {
+          server {
+              listen 80;
+
+              location / {
+                  proxy_pass http://dashboard:3000;
+                  proxy_set_header Host $$host;
+                  proxy_set_header X-Real-IP $$remote_addr;
+                  proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $$scheme;
+              }
+
+              location /api/ {
+                  proxy_pass http://server:8080/;
+                  proxy_set_header Host $$host;
+                  proxy_set_header X-Real-IP $$remote_addr;
+                  proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $$scheme;
+              }
+          }
+      }
+      EOF
+      exec nginx -g "daemon off;"
+      '
+    ports:
+      - '80:80'
+    depends_on:
+      - dashboard
+      - server
+    restart: on-failure
+    networks:
+      - chronoverse
+
+volumes:
+  postgres:
+  clickhouse:
+  redis:
+  kafka:
+  kafka-secrets:
+  lgtm:
+  otel-lgtm:
+
+networks:
+  chronoverse:
+    name: chronoverse
+    driver: bridge
