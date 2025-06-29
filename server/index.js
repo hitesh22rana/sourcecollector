@@ -4,10 +4,9 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs-extra';
 import { v4 as uuidv4 } from 'uuid';
-import { spawn } from 'child_process';
-import archiver from 'archiver';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
+import SourceCollector from './sourcecollector.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -52,145 +51,68 @@ function extractRepoInfo(url) {
 // Helper function to download and extract GitHub repository
 async function downloadRepository(repoInfo, extractPath) {
   const { owner, repo } = repoInfo;
-  const archiveUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
   
-  try {
-    // Try main branch first
-    const response = await fetch(archiveUrl);
-    if (!response.ok) {
-      // If main branch doesn't exist, try master branch
-      const masterUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/master.zip`;
-      const masterResponse = await fetch(masterUrl);
-      if (!masterResponse.ok) {
-        throw new Error(`Repository not found or not accessible: ${response.status}`);
+  // Try main branch first, then master
+  const branches = ['main', 'master'];
+  let lastError;
+  
+  for (const branch of branches) {
+    try {
+      const archiveUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/${branch}.zip`;
+      const response = await fetch(archiveUrl);
+      
+      if (response.ok) {
+        await extractZipFromResponse(response, extractPath, `${repo}-${branch}`);
+        return extractPath;
       }
-      return await extractZipFromResponse(masterResponse, extractPath, `${repo}-master`);
+    } catch (error) {
+      lastError = error;
+      continue;
     }
-    return await extractZipFromResponse(response, extractPath, `${repo}-main`);
-  } catch (error) {
-    throw new Error(`Failed to download repository: ${error.message}`);
   }
+  
+  throw new Error(`Repository not found or not accessible. Last error: ${lastError?.message || 'Unknown error'}`);
 }
 
 // Helper function to extract zip from response
 async function extractZipFromResponse(response, extractPath, expectedFolderName) {
   const zipPath = `${extractPath}.zip`;
   
-  // Download zip file
-  const fileStream = createWriteStream(zipPath);
-  await pipeline(response.body, fileStream);
-  
-  // Extract zip file using Node.js built-in modules
-  let AdmZip;
   try {
-    AdmZip = (await import('adm-zip')).default;
-  } catch (error) {
-    AdmZip = null;
-  }
-  
-  if (!AdmZip) {
-    // Fallback: use unzip command if available
-    return new Promise((resolve, reject) => {
-      const unzipProcess = spawn('unzip', ['-q', zipPath, '-d', dirname(extractPath)]);
-      
-      unzipProcess.on('close', (code) => {
-        // Clean up zip file
-        fs.unlink(zipPath).catch(() => {});
-        
-        if (code === 0) {
-          // Find the extracted folder and rename it
-          const extractedFolder = join(dirname(extractPath), expectedFolderName);
-          if (fs.existsSync(extractedFolder)) {
-            fs.rename(extractedFolder, extractPath).then(resolve).catch(reject);
-          } else {
-            resolve(extractPath);
-          }
-        } else {
-          reject(new Error(`Unzip failed with code ${code}`));
-        }
-      });
-      
-      unzipProcess.on('error', reject);
-    });
-  }
-  
-  // Use adm-zip if available
-  try {
-    const zip = new AdmZip(zipPath);
-    zip.extractAllTo(dirname(extractPath), true);
+    // Download zip file
+    const fileStream = createWriteStream(zipPath);
+    await pipeline(response.body, fileStream);
     
-    // Clean up zip file
-    await fs.unlink(zipPath);
-    
-    // Find the extracted folder and rename it to our expected path
-    const extractedFolder = join(dirname(extractPath), expectedFolderName);
-    if (await fs.pathExists(extractedFolder)) {
-      await fs.move(extractedFolder, extractPath);
+    // Try to use adm-zip if available
+    let AdmZip;
+    try {
+      AdmZip = (await import('adm-zip')).default;
+    } catch (error) {
+      AdmZip = null;
     }
     
-    return extractPath;
-  } catch (error) {
-    // Clean up zip file on error
-    await fs.unlink(zipPath).catch(() => {});
-    throw error;
-  }
-}
-
-// Helper function to ensure SourceCollector binary exists and is executable
-async function ensureSourceCollectorBinary() {
-  const sourcecollectorPath = join(__dirname, '../bin/sourcecollector');
-  
-  // Check if binary exists
-  if (!await fs.pathExists(sourcecollectorPath)) {
-    throw new Error('SourceCollector binary not found. Please build the Go application first by running: go build -o bin/sourcecollector .');
-  }
-  
-  // Make sure it's executable
-  try {
-    await fs.chmod(sourcecollectorPath, 0o755);
-  } catch (error) {
-    console.warn('Could not set executable permissions:', error.message);
-  }
-  
-  return sourcecollectorPath;
-}
-
-// Helper function to run sourcecollector
-async function runSourceCollector(inputPath, outputPath) {
-  const sourcecollectorPath = await ensureSourceCollectorBinary();
-  
-  return new Promise((resolve, reject) => {
-    const process = spawn(sourcecollectorPath, [
-      '--input', inputPath,
-      '--output', outputPath,
-      '--fast'
-    ], {
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    process.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    process.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    process.on('close', (code) => {
-      if (code === 0) {
-        resolve({ stdout, stderr });
-      } else {
-        reject(new Error(`SourceCollector failed with code ${code}: ${stderr || stdout}`));
+    if (AdmZip) {
+      // Use adm-zip
+      const zip = new AdmZip(zipPath);
+      zip.extractAllTo(dirname(extractPath), true);
+      
+      // Find the extracted folder and rename it to our expected path
+      const extractedFolder = join(dirname(extractPath), expectedFolderName);
+      if (await fs.pathExists(extractedFolder)) {
+        await fs.move(extractedFolder, extractPath);
       }
-    });
-
-    process.on('error', (error) => {
-      reject(new Error(`Failed to execute SourceCollector: ${error.message}`));
-    });
-  });
+    } else {
+      // Fallback: manual extraction using Node.js streams and basic zip parsing
+      throw new Error('ZIP extraction not available. Please install adm-zip dependency.');
+    }
+  } finally {
+    // Clean up zip file
+    try {
+      await fs.unlink(zipPath);
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  }
 }
 
 // API Routes
@@ -324,17 +246,19 @@ async function processRepository(jobId, repoUrl, repoInfo) {
     job.progress = 50;
     job.message = 'Repository downloaded, processing files...';
 
-    // Run sourcecollector
-    await runSourceCollector(clonePath, outputPath);
+    // Run JavaScript-based SourceCollector
+    const collector = new SourceCollector(clonePath, outputPath);
+    const result = await collector.run();
 
     // Get file stats
     const stats = await fs.stat(outputPath);
     
     job.status = 'completed';
     job.progress = 100;
-    job.message = 'Processing completed successfully';
+    job.message = `Processing completed successfully (${result.filesProcessed} files processed)`;
     job.completedAt = new Date().toISOString();
     job.fileSize = stats.size;
+    job.filesProcessed = result.filesProcessed;
 
   } catch (error) {
     console.error(`Job ${jobId} failed:`, error);
@@ -351,4 +275,5 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log('Using JavaScript-based SourceCollector (Go binary not required)');
 });
