@@ -81,7 +81,12 @@ async function extractZipFromResponse(response, extractPath, expectedFolderName)
   await pipeline(response.body, fileStream);
   
   // Extract zip file using Node.js built-in modules
-  const AdmZip = await import('adm-zip').then(m => m.default).catch(() => null);
+  let AdmZip;
+  try {
+    AdmZip = (await import('adm-zip')).default;
+  } catch (error) {
+    AdmZip = null;
+  }
   
   if (!AdmZip) {
     // Fallback: use unzip command if available
@@ -131,22 +136,37 @@ async function extractZipFromResponse(response, extractPath, expectedFolderName)
   }
 }
 
-// Helper function to run sourcecollector
-function runSourceCollector(inputPath, outputPath) {
-  return new Promise((resolve, reject) => {
-    const sourcecollectorPath = join(__dirname, '../bin/sourcecollector');
-    
-    // Check if sourcecollector binary exists
-    if (!fs.existsSync(sourcecollectorPath)) {
-      reject(new Error('SourceCollector binary not found. Please build the Go application first.'));
-      return;
-    }
+// Helper function to ensure SourceCollector binary exists and is executable
+async function ensureSourceCollectorBinary() {
+  const sourcecollectorPath = join(__dirname, '../bin/sourcecollector');
+  
+  // Check if binary exists
+  if (!await fs.pathExists(sourcecollectorPath)) {
+    throw new Error('SourceCollector binary not found. Please build the Go application first by running: go build -o bin/sourcecollector .');
+  }
+  
+  // Make sure it's executable
+  try {
+    await fs.chmod(sourcecollectorPath, 0o755);
+  } catch (error) {
+    console.warn('Could not set executable permissions:', error.message);
+  }
+  
+  return sourcecollectorPath;
+}
 
+// Helper function to run sourcecollector
+async function runSourceCollector(inputPath, outputPath) {
+  const sourcecollectorPath = await ensureSourceCollectorBinary();
+  
+  return new Promise((resolve, reject) => {
     const process = spawn(sourcecollectorPath, [
       '--input', inputPath,
       '--output', outputPath,
       '--fast'
-    ]);
+    ], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
 
     let stdout = '';
     let stderr = '';
@@ -163,12 +183,12 @@ function runSourceCollector(inputPath, outputPath) {
       if (code === 0) {
         resolve({ stdout, stderr });
       } else {
-        reject(new Error(`SourceCollector failed with code ${code}: ${stderr}`));
+        reject(new Error(`SourceCollector failed with code ${code}: ${stderr || stdout}`));
       }
     });
 
     process.on('error', (error) => {
-      reject(error);
+      reject(new Error(`Failed to execute SourceCollector: ${error.message}`));
     });
   });
 }
