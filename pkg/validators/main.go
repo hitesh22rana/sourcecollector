@@ -31,15 +31,6 @@ var (
 		"LCK..",            // Lock files
 		".DS_Store",        // macOS file system metadata
 		"Thumbs.db",        // Windows file system metadata
-		"LICENSE",          // License files
-		"AUTHORS",          // Authors files
-		"CONTRIBUTORS",     // Contributors files
-		"CHANGELOG",        // Changelog files
-		"CHANGES",          // Changes files
-		"HISTORY",          // History files
-		"NOTICE",           // Notice files
-		"README",           // Readme files
-		"TODO",             // Todo files
 
 		// JavaScript
 		"package-lock.json", // NPM lock file
@@ -97,6 +88,9 @@ var (
 		".bundle", // Bundler directory
 
 		// Go
+		".bin",   // Go binary files
+		".exe",   // Go executable files
+		"/bin",   // Go binary directory
 		".exe",   // Executable files
 		".test",  // Test binary
 		".out",   // Output files
@@ -301,7 +295,6 @@ var (
 		".kxml":        {}, // Kite
 		".l":           {}, // Lisp
 		".lagda":       {}, // Agda
-		".lagda.md":    {}, // Agda
 		".lagda.rst":   {}, // Agda
 		".lean":        {}, // Lean
 		".less":        {}, // LESS
@@ -323,7 +316,6 @@ var (
 		".mata":        {}, // MATLAB
 		".matlab":      {}, // MATLAB
 		".maxpat":      {}, // Max
-		".md":          {}, // Markdown
 		".mediawiki":   {}, // MediaWiki
 		".mirah":       {}, // Mirah
 		".mjml":        {}, // MJML
@@ -501,6 +493,10 @@ var (
 		".zig":         {}, // Zig
 		".zsh":         {}, // Zsh
 	}
+
+	validInformativeFiles = map[string]struct{}{
+		".md": {},
+	}
 )
 
 // Validator is an interface that defines the methods to validate the files
@@ -549,11 +545,21 @@ func isUnwantedFilesAndFolders(path string) bool {
 	return false
 }
 
-// isMarkdownFile checks if the file is a markdown file or not
-func isMarkdownFile(path string) bool {
+// isInformativeFile checks if the file is an informative file or not
+func isInformativeFile(path string) bool {
 	ext := filepath.Ext(path)
 
-	return strings.Contains(ext, ".md")
+	// Check if the file is an informative file
+	if _, ok := validInformativeFiles[ext]; ok {
+		return true
+	}
+
+	// Check if the file is a Makefile
+	if strings.ToLower(filepath.Base(path)) == "makefile" {
+		return true
+	}
+
+	return false
 }
 
 // isProgrammingFile checks if the file is a programming file or not

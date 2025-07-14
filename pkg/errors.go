@@ -4,7 +4,7 @@ import "errors"
 
 var (
 	ErrInvalidInputPath      = errors.New("input path is invalid")
-	ErrInavlidInputDirectory = errors.New("input path is not a directory")
+	ErrInvalidInputDirectory = errors.New("input path is not a valid directory")
 	ErrInvalidOutputPath     = errors.New("output path is invalid")
 	ErrFailedToCreateFile    = errors.New("failed to create output file")
 	ErrSourceTreeGeneration  = errors.New("failed to generate source tree")

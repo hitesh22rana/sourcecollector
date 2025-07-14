@@ -11,12 +11,12 @@ func NewDefaultValidator() *DefaultValidator {
 // IsIgnored checks if the file is ignored or not
 func (v *DefaultValidator) IsIgnored(path string) bool {
 	// Check if the file is a sensitive file or a markdown file
-	if isSensitiveFile(path) || isMarkdownFile(path) {
+	if isSensitiveFile(path) {
 		return true
 	}
 
 	// Check if the file is not a directory and is not a programming file
-	if !isDirectory(path) && !isProgrammingFile(path) {
+	if !isDirectory(path) && !isProgrammingFile(path) && !isInformativeFile(path) {
 		return true
 	}
 

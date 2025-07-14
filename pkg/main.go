@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,14 +19,29 @@ func NewSourceCollector(input string, output string, fast bool) (*SourceCollecto
 		return nil, ErrInvalidInputPath
 	}
 
-	// Validate if input file is a directory or not
-	if !isDirectory(input) {
-		return nil, ErrInavlidInputDirectory
+	// Convert input to absolute path relative to root
+	var err error
+	if !filepath.IsAbs(input) {
+		input, err = filepath.Abs(input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get absolute path: %w", err)
+		}
+	}
+
+	if !isDirectory(input) || filepath.Ext(input) != "" {
+		return nil, ErrInvalidInputDirectory
 	}
 
 	// Validate if output file is a directory or don't have .txt extension
 	if !isValidPath(filepath.Dir(output)) || filepath.Ext(output) != ".txt" {
 		return nil, ErrInvalidOutputPath
+	}
+
+	if !filepath.IsAbs(output) {
+		output, err = filepath.Abs(output)
+		if err != nil {
+			return nil, ErrInvalidOutputPath
+		}
 	}
 
 	// Make the output file if it does not exist

@@ -50,7 +50,7 @@ func (sc *SourceCollector) generateSourceTree(path string) *SourceTree {
 func (sc *SourceCollector) generateSourceTreeStructure(tree *SourceTree, level int) string {
 	// Generate the tree structure
 	var treeStructure string
-	for i := 0; i < level; i++ {
+	for range level {
 		treeStructure += "│  "
 	}
 
